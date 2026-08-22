@@ -7,7 +7,7 @@
 
 Send and receive SMS messages using your own Android phone - no Twilio, no per-message fees. Free, open-source, and self-hostable.
 
-Manage SMS messages through a web dashboard or a REST API. textbee is ideal for businesses, developers, and hobbyists looking for a reliable and cost-effective solution to automate SMS messaging.
+The open-source SMS gateway for developers, automations, and AI agents. Manage SMS messages through a web dashboard, a REST API, or the [MCP server](#use-with-ai-agents-mcp) for AI agents. textbee is ideal for businesses, developers, and hobbyists looking for a reliable and cost-effective solution to automate SMS messaging.
 
 **Website:** [https://textbee.dev](https://textbee.dev?ref=gh-readme)
 
@@ -114,6 +114,25 @@ curl -X GET "https://api.textbee.dev/api/v1/gateway/messages?direction=received"
 ```
  
 </details>
+
+### Use with AI agents (MCP)
+
+The official [textbee MCP server](https://github.com/textbee/textbee-mcp) lets Claude Desktop, Claude Code, Cursor, and any MCP-compatible client send and read SMS through your account. Your API key stays on your machine, and plan limits apply server-side like any other send.
+
+```json
+{
+  "mcpServers": {
+    "textbee": {
+      "command": "npx",
+      "args": ["-y", "@textbee/mcp"],
+      "env": { "TEXTBEE_API_KEY": "YOUR_API_KEY" }
+    }
+  }
+}
+```
+
+Three tools: `send_sms` (send to one or many recipients), `get_messages` (read replies and verification codes, check delivery status), and `list_devices`. Self-hosted instances work with `TEXTBEE_BASE_URL`. Details at [textbee.dev/mcp](https://textbee.dev/mcp?ref=gh-readme) and the [agent docs](https://textbee.dev/docs/agents/mcp?ref=gh-readme).
+
 ## Use Cases
  
 - OTP / 2FA delivery for your app
