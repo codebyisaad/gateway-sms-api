@@ -20,6 +20,23 @@ import { WebhookQueueService } from './queue/webhook-queue.service'
 import { MailService } from '../mail/mail.service'
 import { UsersService } from '../users/users.service'
 
+/**
+ * Endpoints can carry a token in the query or in userinfo, so the admin summary
+ * only ever shows origin and path.
+ */
+export const redactDeliveryUrl = (deliveryUrl: string): string => {
+  if (!deliveryUrl) {
+    return ''
+  }
+  try {
+    const url = new URL(deliveryUrl)
+    const query = url.search ? '?[redacted]' : ''
+    return `${url.protocol}//${url.host}${url.pathname}${query}`
+  } catch {
+    return '[unparseable url]'
+  }
+}
+
 @Injectable()
 export class WebhookService {
   constructor(
@@ -1004,6 +1021,8 @@ export class WebhookService {
           context: {
             name: user.name?.split(' ')?.[0] || 'there',
             title: 'Your webhook was paused',
+            subscriptionName: subscription.name ?? '',
+            deliveryUrl: subscription.deliveryUrl ?? '',
             failureCount,
             successCount,
             totalAttempts,
@@ -1011,7 +1030,6 @@ export class WebhookService {
             lookbackDays,
             ctaUrl: `${ctaUrlBase}/dashboard/account`,
             ctaLabel: 'Re-enable in dashboard',
-            brandName: 'textbee.dev',
           },
         })
       } catch (e) {
@@ -1034,8 +1052,13 @@ export class WebhookService {
             title: 'Webhook auto-disable summary',
             runAt,
             count: disabledInThisRun.length,
-            disabledList: disabledInThisRun,
-            brandName: 'textbee.dev',
+            rows: disabledInThisRun.map((d) => ({
+              id: d.subscriptionId,
+              deliveryUrl: redactDeliveryUrl(d.deliveryUrl),
+              failed: d.failureCount,
+              total: d.totalAttempts,
+              failureRate: d.failureRatePercent,
+            })),
           },
         })
       } catch (e) {
