@@ -30,6 +30,11 @@ import { encodeCursor } from './cursor'
 import { toDirection, toStoredType } from './message-direction'
 import { ParsedMessageQuery } from './message-query'
 import { smsAndroidConfig } from './fcm-push-options'
+import {
+  FCM_SEND_SKIPPED_ERROR_CODE,
+  shouldSkipFcmSend,
+  skippedBatchResponse,
+} from './fcm-send-skip'
 import { DispatchPlan } from './queue/dispatch-pacing'
 import { Job } from 'bull'
 
@@ -620,9 +625,19 @@ export class GatewayService {
     }
 
     try {
-      const response = await firebaseAdmin.messaging().sendEach(fcmMessages)
+      const skipped = shouldSkipFcmSend(device.user, deviceId)
+      const response = skipped
+        ? skippedBatchResponse(fcmMessages.length)
+        : await firebaseAdmin.messaging().sendEach(fcmMessages)
 
       console.log(response)
+
+      if (skipped) {
+        await this.smsModel.updateMany(
+          { smsBatch: smsBatch._id },
+          { $set: { errorCode: FCM_SEND_SKIPPED_ERROR_CODE } },
+        )
+      }
 
       if (response.successCount === 0) {
         throw new HttpException(
@@ -970,10 +985,20 @@ export class GatewayService {
     const fcmMessages = fcmMessagesWithDelays.map(({ message }) => message)
     const fcmMessagesBatches = fcmMessages.map((m) => [m])
     const fcmResponses: BatchResponse[] = []
+    const skipped = shouldSkipFcmSend(device.user, deviceId)
+
+    if (skipped) {
+      await this.smsModel.updateMany(
+        { smsBatch: smsBatch._id },
+        { $set: { errorCode: FCM_SEND_SKIPPED_ERROR_CODE } },
+      )
+    }
 
     for (const batch of fcmMessagesBatches) {
       try {
-        const response = await firebaseAdmin.messaging().sendEach(batch)
+        const response = skipped
+          ? skippedBatchResponse(batch.length)
+          : await firebaseAdmin.messaging().sendEach(batch)
 
         console.log(response)
         fcmResponses.push(response)

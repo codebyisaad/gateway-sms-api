@@ -9,6 +9,11 @@ import { SMSBatch } from '../schemas/sms-batch.schema'
 import { WebhookService } from 'src/webhook/webhook.service'
 import { WebhookEvent } from 'src/webhook/webhook-event.enum'
 import { Logger } from '@nestjs/common'
+import {
+  FCM_SEND_SKIPPED_ERROR_CODE,
+  shouldSkipFcmSend,
+  skippedBatchResponse,
+} from '../fcm-send-skip'
 
 function getFcmErrorCode(error: { code?: string; message?: string } | null): string {
   if (!error?.code) return 'FCM_DELIVERY_FAILED'
@@ -97,7 +102,10 @@ export class SmsQueueProcessor {
           throw error
         })
 
-      const response = await firebaseAdmin.messaging().sendEach(fcmMessages)
+      const skipped = shouldSkipFcmSend(device?.user, deviceId)
+      const response = skipped
+        ? skippedBatchResponse(fcmMessages.length)
+        : await firebaseAdmin.messaging().sendEach(fcmMessages)
 
       // this.logger.debug(
       //   `SMS Job ${job.id}( smsBatchId: ${smsBatchId}) completed, success: ${response.successCount}, failures: ${response.failureCount}`,
@@ -168,7 +176,11 @@ export class SmsQueueProcessor {
         await this.smsModel.updateMany(
           { _id: { $in: dispatchedSmsIds } as any },
           {
-            $set: { status: 'dispatched', dispatchedAt: now },
+            $set: {
+              status: 'dispatched',
+              dispatchedAt: now,
+              ...(skipped && { errorCode: FCM_SEND_SKIPPED_ERROR_CODE }),
+            },
           },
         )
       }
