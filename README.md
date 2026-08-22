@@ -11,7 +11,7 @@ The open-source SMS gateway for developers, automations, and AI agents. Manage S
 
 **Website:** [https://textbee.dev](https://textbee.dev?ref=gh-readme)
 
-![](https://ik.imagekit.io/vernu/textbee/textbee.dev-landingpage-screenshot.png?updatedAt=1749102564772)
+![textbee.dev landing page](.github/assets/landing-page.png)
 
 
  
