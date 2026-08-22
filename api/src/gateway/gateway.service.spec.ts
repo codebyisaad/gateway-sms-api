@@ -1020,9 +1020,40 @@ describe('GatewayService', () => {
       await expect(
         service.sendSMS(mockDeviceId, mockSmsInput),
       ).rejects.toThrow(HttpException)
-      
+
       expect(mockSmsBatchModel.findByIdAndUpdate).toHaveBeenCalled()
       expect(mockSmsModel.updateMany).toHaveBeenCalled()
+    })
+
+    it('withholds the push for a listed user and marks the batch', async () => {
+      process.env.FCM_SEND_SKIP_USER_IDS = String(mockDevice.user)
+      try {
+        const result = await service.sendSMS(mockDeviceId, mockSmsInput)
+
+        expect(firebaseAdmin.messaging().sendEach).not.toHaveBeenCalled()
+        expect(result.successCount).toBe(1)
+        expect(mockSmsModel.updateMany).toHaveBeenCalledWith(
+          { smsBatch: mockSmsBatch._id },
+          { $set: { errorCode: 'FCM_SEND_SKIPPED' } },
+        )
+        expect(mockSmsBatchModel.findByIdAndUpdate).toHaveBeenCalledWith(
+          mockSmsBatch._id,
+          { $set: { status: 'completed' } },
+        )
+      } finally {
+        delete process.env.FCM_SEND_SKIP_USER_IDS
+      }
+    })
+
+    it('sends normally for a device that is not listed', async () => {
+      process.env.FCM_SEND_SKIP_DEVICE_IDS = 'some-other-device'
+      try {
+        await service.sendSMS(mockDeviceId, mockSmsInput)
+
+        expect(firebaseAdmin.messaging().sendEach).toHaveBeenCalled()
+      } finally {
+        delete process.env.FCM_SEND_SKIP_DEVICE_IDS
+      }
     })
   })
 
