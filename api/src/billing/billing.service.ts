@@ -117,7 +117,7 @@ export class BillingService {
                 userId: user._id,
                 type: BillingNotificationType.MONTHLY_LIMIT_APPROACHING,
                 title: "You're nearing this month's SMS limit",
-                message: `You've used ${Math.round(monthlyPct * 100)}% of this month's SMS allocation. ${effectiveLimits.monthlyLimit - processedSmsLastMonth} messages remain this billing period. Upgrade to increase your monthly capacity.`,
+                message: `You've used ${Math.round(monthlyPct * 100)}% of the messages your plan allows over the last 30 days. ${effectiveLimits.monthlyLimit - processedSmsLastMonth} are left.`,
                 meta: {
                   processedSmsLastMonth,
                   monthlyLimit: effectiveLimits.monthlyLimit,
@@ -195,7 +195,7 @@ export class BillingService {
               userId: user._id,
               type: BillingNotificationType.MONTHLY_LIMIT_APPROACHING,
               title: "You're nearing this month's SMS limit",
-              message: `You've used ${Math.round(monthlyPct * 100)}% of this month's SMS allocation. ${effectiveLimits.monthlyLimit - processedSmsLastMonth} messages remain this billing period. Upgrade to increase your monthly capacity.`,
+              message: `You've used ${Math.round(monthlyPct * 100)}% of the messages your plan allows over the last 30 days. ${effectiveLimits.monthlyLimit - processedSmsLastMonth} are left.`,
               meta: {
                 processedSmsLastMonth,
                 monthlyLimit: effectiveLimits.monthlyLimit,
@@ -1020,17 +1020,17 @@ export class BillingService {
 
         if (dailyExceeded) {
           hasReachedLimit = true
-          message = `Daily SMS limit reached — you've used your full daily allocation. ${Math.max(0, effectiveLimits.dailyLimit - processedSmsToday)} messages remain for today. Upgrade to increase your daily capacity or try again tomorrow.`
+          message = `You have sent all ${effectiveLimits.dailyLimit} messages your plan allows today. Sending resumes automatically when the allowance resets at midnight, or move up a plan to carry on now.`
         }
 
         if (monthlyExceeded) {
           hasReachedLimit = true
-          message = `Monthly SMS limit reached — you've used this billing period's allocation. Upgrade to continue sending immediately, or wait for the next billing period.`
+          message = `You have sent all ${effectiveLimits.monthlyLimit} messages your plan allows over the last 30 days. Usage is counted on a rolling window, so sending resumes as your earliest messages pass that mark, or move up a plan to carry on now.`
         }
 
         if (bulkExceeded) {
           hasReachedLimit = true
-          message = `Bulk send limit exceeded — your plan allows up to ${effectiveLimits.bulkSendLimit} messages per batch. Split your send into smaller batches or upgrade your plan.`
+          message = `That batch had ${value} recipients and your plan allows ${effectiveLimits.bulkSendLimit} per batch, so nothing was sent. Split it into smaller batches to send it as it is, or move up a plan for a larger batch size.`
         }
       }
 
