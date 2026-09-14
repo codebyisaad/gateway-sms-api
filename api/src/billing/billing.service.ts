@@ -755,6 +755,13 @@ export class BillingService {
     }
   }
 
+  private isLimitExempt(userId: string) {
+    return (process.env.LIMIT_EXEMPT_USER_IDS ?? '')
+      .split(',')
+      .map((id) => id.trim())
+      .includes(String(userId))
+  }
+
   async getUserLimits(userId: string) {
     const subscription = await this.subscriptionModel
       .findOne({ user: new Types.ObjectId(userId), isActive: true })
@@ -1044,6 +1051,10 @@ export class BillingService {
           },
           HttpStatus.BAD_REQUEST,
         )
+      }
+
+      if (this.isLimitExempt(userId)) {
+        return true
       }
 
       let plan: PlanDocument

@@ -427,6 +427,55 @@ describe('BillingService - canPerformAction account checks', () => {
     await expect(service.canPerformAction(userId, 'send_sms', 1)).resolves.toBe(true)
   })
 
+  describe('LIMIT_EXEMPT_USER_IDS', () => {
+    const originalExempt = process.env.LIMIT_EXEMPT_USER_IDS
+
+    afterEach(() => {
+      if (originalExempt === undefined) delete process.env.LIMIT_EXEMPT_USER_IDS
+      else process.env.LIMIT_EXEMPT_USER_IDS = originalExempt
+    })
+
+    it.each(['send_sms', 'bulk_send_sms', 'receive_sms'] as const)(
+      'skips usage limits for a listed account on %s',
+      async (action) => {
+        process.env.LIMIT_EXEMPT_USER_IDS = ` 64b000000000000000000001 , ${userId} `
+        givenUser({ emailVerifiedAt: new Date() })
+        mockSmsModel.countDocuments.mockResolvedValue(1000)
+
+        await expect(service.canPerformAction(userId, action, 500)).resolves.toBe(true)
+        expect(mockSmsModel.countDocuments).not.toHaveBeenCalled()
+      },
+    )
+
+    it('still enforces limits for an account that is not listed', async () => {
+      process.env.LIMIT_EXEMPT_USER_IDS = '64b000000000000000000001'
+      givenUser({ emailVerifiedAt: new Date() })
+      mockSmsModel.countDocuments.mockResolvedValue(300)
+
+      await expect(service.canPerformAction(userId, 'receive_sms', 1)).rejects.toMatchObject({
+        status: 429,
+      })
+    })
+
+    it('still requires a verified email for a listed account', async () => {
+      process.env.LIMIT_EXEMPT_USER_IDS = userId
+      givenUser({})
+
+      await expect(service.canPerformAction(userId, 'send_sms', 1)).rejects.toMatchObject({
+        status: 400,
+      })
+    })
+
+    it('still blocks a banned listed account', async () => {
+      process.env.LIMIT_EXEMPT_USER_IDS = userId
+      givenUser({ emailVerifiedAt: new Date(), isBanned: true })
+
+      await expect(service.canPerformAction(userId, 'send_sms', 1)).rejects.toMatchObject({
+        status: 500,
+      })
+    })
+  })
+
   it('still applies plan limits to a waived account', async () => {
     givenUser({ emailVerificationWaivedAt: new Date() })
     mockSmsModel.countDocuments.mockResolvedValue(freePlan.dailyLimit)
