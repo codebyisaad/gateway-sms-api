@@ -937,7 +937,27 @@ export class RetrieveSMSDTO {
   })
   errorMessage?: string
 
-  @ApiProperty({ type: Date, description: 'When the record was created.' })
+  @ApiProperty({
+    type: Boolean,
+    required: false,
+    description:
+      'True when the message was received while the account was over its plan limit. Received messages only. Absent otherwise.',
+  })
+  overLimit?: boolean
+
+  @ApiProperty({
+    type: Date,
+    required: false,
+    description:
+      'When the platform stored the message. Set only on a received message uploaded more than 24 hours after receivedAt, whose createdAt is set to receivedAt.',
+  })
+  originalCreatedAt?: Date
+
+  @ApiProperty({
+    type: Date,
+    description:
+      'When the record was created. For a received message uploaded more than 24 hours after receivedAt, this equals receivedAt and originalCreatedAt holds the upload time.',
+  })
   createdAt: Date
 
   @ApiProperty({ type: Date, description: 'When the record was last updated.' })

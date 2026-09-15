@@ -755,6 +755,17 @@ export class BillingService {
     }
   }
 
+  private isLimitExempt(userId: string) {
+    return (process.env.LIMIT_EXEMPT_USER_IDS ?? '')
+      .split(',')
+      .map((id) => id.trim())
+      .includes(String(userId))
+  }
+
+  private receivesOverLimitAllowed() {
+    return process.env.RECEIVE_SMS_OVER_LIMIT !== 'reject'
+  }
+
   async getUserLimits(userId: string) {
     const subscription = await this.subscriptionModel
       .findOne({ user: new Types.ObjectId(userId), isActive: true })
@@ -1015,7 +1026,7 @@ export class BillingService {
     userId: string,
     action: 'send_sms' | 'receive_sms' | 'bulk_send_sms',
     value: number,
-  ) {
+  ): Promise<{ overLimit: boolean }> {
     try {
       const user = await this.userModel
         .findById(userId)
@@ -1046,6 +1057,10 @@ export class BillingService {
         )
       }
 
+      if (this.isLimitExempt(userId)) {
+        return { overLimit: false }
+      }
+
       let plan: PlanDocument
       const subscription = await this.subscriptionModel.findOne({
         user: user._id,
@@ -1067,7 +1082,7 @@ export class BillingService {
           effectiveLimits.monthlyLimit === -1 &&
           effectiveLimits.bulkSendLimit === -1
         ) {
-          return true
+          return { overLimit: false }
         }
         // Otherwise, continue with limit checks using effective limits
       }
@@ -1121,24 +1136,29 @@ export class BillingService {
       }
 
       if (hasReachedLimit) {
-        console.warn('canPerformAction: hasReachedLimit')
-        console.warn(
-          JSON.stringify({
-            userId,
-            userEmail: user.email,
-            userName: user.name,
-            action,
-            value,
-            message,
-            hasReachedLimit: true,
-            dailyLimit: effectiveLimits.dailyLimit,
-            dailyRemaining: effectiveLimits.dailyLimit - processedSmsToday,
-            monthlyRemaining:
-              effectiveLimits.monthlyLimit - processedSmsLastMonth,
-            bulkSendLimit: effectiveLimits.bulkSendLimit,
-            monthlyLimit: effectiveLimits.monthlyLimit,
-          }),
-        )
+        const storeReceive =
+          action === 'receive_sms' && this.receivesOverLimitAllowed()
+
+        if (!storeReceive) {
+          console.warn('canPerformAction: hasReachedLimit')
+          console.warn(
+            JSON.stringify({
+              userId,
+              userEmail: user.email,
+              userName: user.name,
+              action,
+              value,
+              message,
+              hasReachedLimit: true,
+              dailyLimit: effectiveLimits.dailyLimit,
+              dailyRemaining: effectiveLimits.dailyLimit - processedSmsToday,
+              monthlyRemaining:
+                effectiveLimits.monthlyLimit - processedSmsLastMonth,
+              bulkSendLimit: effectiveLimits.bulkSendLimit,
+              monthlyLimit: effectiveLimits.monthlyLimit,
+            }),
+          )
+        }
 
         let type: BillingNotificationType
         let titleForEmail = ''
@@ -1153,7 +1173,7 @@ export class BillingService {
           titleForEmail = 'Bulk send limit exceeded'
         }
         if (type) {
-          await this.billingNotifications.notifyOnce({
+          const notification = this.billingNotifications.notifyOnce({
             userId: user._id,
             type,
             title: titleForEmail || 'Usage limit notice',
@@ -1168,6 +1188,11 @@ export class BillingService {
             },
             sendEmail: true,
           })
+          if (storeReceive) {
+            notification.catch(() => {})
+          } else {
+            await notification
+          }
         }
 
         // if plan is not free and monthly limit is exceeded, give them 80% more monthly limit
@@ -1183,9 +1208,14 @@ export class BillingService {
           const exceedsExtended =
             processedSmsLastMonth + value > extendedMonthlyLimit
           if (!exceedsExtended) {
-            return true
+            return { overLimit: false }
           }
         }
+
+        if (storeReceive) {
+          return { overLimit: true }
+        }
+
         throw new HttpException(
           {
             message: message,
@@ -1201,7 +1231,7 @@ export class BillingService {
         )
       }
 
-      return true
+      return { overLimit: false }
     } catch (error) {
       if (error instanceof HttpException) {
         throw error
@@ -1211,7 +1241,7 @@ export class BillingService {
         action,
         error: error?.stack ?? error,
       })
-      return true
+      return { overLimit: false }
     }
   }
 

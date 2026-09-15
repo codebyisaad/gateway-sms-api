@@ -89,6 +89,14 @@ export class SMS {
   @Prop({ type: Object })
   metadata: Record<string, any>
 
+  // received while the account was over its plan limit
+  @Prop({ type: Boolean })
+  overLimit?: boolean
+
+  // upload time, kept when createdAt is moved back to receivedAt
+  @Prop({ type: Date })
+  originalCreatedAt?: Date
+
   // set by { timestamps: true }; declared here for typing only, no @Prop
   createdAt?: Date
   updatedAt?: Date
