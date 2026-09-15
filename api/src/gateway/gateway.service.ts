@@ -30,6 +30,8 @@ import { normalizeOsFields } from './os-version'
 import { encodeCursor } from './cursor'
 import {
   isMalformedReceivedSms,
+  isTooLateForWebhook,
+  lateArrivalTimestamps,
   receivedSmsIgnoreReason,
   resolveReceivedAt,
 } from './received-sms-input'
@@ -1127,7 +1129,7 @@ export class GatewayService {
       return { ignored: true, reason: ignoredReason }
     }
 
-    await this.billingService.canPerformAction(
+    const { overLimit } = await this.billingService.canPerformAction(
       device.user.toString(),
       'receive_sms',
       1,
@@ -1169,6 +1171,8 @@ export class GatewayService {
       status: 'received',
       sender: dto.sender,
       receivedAt,
+      ...lateArrivalTimestamps(receivedAt, device.createdAt),
+      ...(overLimit && { overLimit: true }),
     })
 
     this.deviceModel
@@ -1181,15 +1185,17 @@ export class GatewayService {
         console.log(e)
       })
 
-    this.webhookService
-      .deliverNotification({
-        sms,
-        user: device.user,
-        event: WebhookEvent.MESSAGE_RECEIVED,
-      })
-      .catch((e) => {
-        console.log(e)
-      })
+    if (!isTooLateForWebhook(receivedAt)) {
+      this.webhookService
+        .deliverNotification({
+          sms,
+          user: device.user,
+          event: WebhookEvent.MESSAGE_RECEIVED,
+        })
+        .catch((e) => {
+          console.log(e)
+        })
+    }
 
     return sms
   }

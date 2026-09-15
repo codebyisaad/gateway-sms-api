@@ -1,8 +1,12 @@
 import {
   isMalformedReceivedSms,
+  isTooLateForWebhook,
+  lateArrivalTimestamps,
   receivedSmsIgnoreReason,
   resolveReceivedAt,
 } from './received-sms-input'
+
+const HOUR_MS = 60 * 60 * 1000
 
 describe('resolveReceivedAt', () => {
   const now = new Date('2026-09-13T12:00:00.000Z')
@@ -74,5 +78,79 @@ describe('receivedSmsIgnoreReason', () => {
 
   it('keeps a message with text and a sender', () => {
     expect(receivedSmsIgnoreReason('+15555550123', 'hello')).toBeNull()
+  })
+})
+
+describe('lateArrivalTimestamps', () => {
+  const now = new Date('2026-09-15T12:00:00.000Z')
+  const deviceCreatedAt = new Date('2026-05-26T06:00:00.000Z')
+  const hoursAgo = (hours: number) => new Date(now.getTime() - hours * HOUR_MS)
+
+  it('keeps createdAt for a message uploaded within 24 hours', () => {
+    expect(lateArrivalTimestamps(hoursAgo(23), deviceCreatedAt, now)).toEqual({})
+  })
+
+  it('moves createdAt to receivedAt for a message uploaded after 24 hours', () => {
+    const receivedAt = hoursAgo(25)
+
+    expect(lateArrivalTimestamps(receivedAt, deviceCreatedAt, now)).toEqual({
+      createdAt: receivedAt,
+      originalCreatedAt: now,
+    })
+  })
+
+  it('ignores a receivedAt in the future', () => {
+    expect(lateArrivalTimestamps(hoursAgo(-30), deviceCreatedAt, now)).toEqual({})
+  })
+
+  it('ignores a receivedAt from before the device was registered', () => {
+    const receivedAt = new Date('2020-01-01T00:00:00.000Z')
+
+    expect(lateArrivalTimestamps(receivedAt, deviceCreatedAt, now)).toEqual({})
+  })
+
+  it('works without a device creation date', () => {
+    expect(lateArrivalTimestamps(hoursAgo(25), undefined, now)).toHaveProperty(
+      'originalCreatedAt',
+      now,
+    )
+  })
+})
+
+describe('isTooLateForWebhook', () => {
+  const now = new Date('2026-09-15T12:00:00.000Z')
+  const hoursAgo = (hours: number) => new Date(now.getTime() - hours * HOUR_MS)
+  const original = process.env.RECEIVED_WEBHOOK_MAX_AGE_HOURS
+
+  afterEach(() => {
+    if (original === undefined) delete process.env.RECEIVED_WEBHOOK_MAX_AGE_HOURS
+    else process.env.RECEIVED_WEBHOOK_MAX_AGE_HOURS = original
+  })
+
+  it('uses 48 hours by default', () => {
+    delete process.env.RECEIVED_WEBHOOK_MAX_AGE_HOURS
+
+    expect(isTooLateForWebhook(hoursAgo(47), now)).toBe(false)
+    expect(isTooLateForWebhook(hoursAgo(49), now)).toBe(true)
+  })
+
+  it('reads the limit from RECEIVED_WEBHOOK_MAX_AGE_HOURS', () => {
+    process.env.RECEIVED_WEBHOOK_MAX_AGE_HOURS = '2'
+
+    expect(isTooLateForWebhook(hoursAgo(1), now)).toBe(false)
+    expect(isTooLateForWebhook(hoursAgo(3), now)).toBe(true)
+  })
+
+  it('never skips when set to 0', () => {
+    process.env.RECEIVED_WEBHOOK_MAX_AGE_HOURS = '0'
+
+    expect(isTooLateForWebhook(hoursAgo(24 * 90), now)).toBe(false)
+  })
+
+  it.each(['', 'abc', '-5'])('falls back to 48 hours for %p', (value) => {
+    process.env.RECEIVED_WEBHOOK_MAX_AGE_HOURS = value
+
+    expect(isTooLateForWebhook(hoursAgo(47), now)).toBe(false)
+    expect(isTooLateForWebhook(hoursAgo(49), now)).toBe(true)
   })
 })

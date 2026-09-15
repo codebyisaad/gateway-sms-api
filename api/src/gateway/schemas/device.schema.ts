@@ -218,6 +218,10 @@ export class Device {
       subscriptionType?: string
     }>
   }
+
+  // set by { timestamps: true }; declared here for typing only, no @Prop
+  createdAt?: Date
+  updatedAt?: Date
 }
 
 export const DeviceSchema = SchemaFactory.createForClass(Device)

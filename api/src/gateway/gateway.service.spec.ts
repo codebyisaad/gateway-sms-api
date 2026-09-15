@@ -848,7 +848,7 @@ describe('GatewayService', () => {
       mockSmsBatchModel.findByIdAndUpdate.mockImplementation(() => ({
         exec: jest.fn().mockResolvedValue(true),
       }))
-      mockBillingService.canPerformAction.mockResolvedValue(true)
+      mockBillingService.canPerformAction.mockResolvedValue({ overLimit: false })
       mockSmsQueueService.isQueueEnabled.mockReturnValue(false)
       
       // Fix the mock
@@ -1122,7 +1122,7 @@ describe('GatewayService', () => {
       mockSmsBatchModel.findByIdAndUpdate.mockImplementation(() => ({
         exec: jest.fn().mockResolvedValue(true),
       }))
-      mockBillingService.canPerformAction.mockResolvedValue(true)
+      mockBillingService.canPerformAction.mockResolvedValue({ overLimit: false })
       mockSmsQueueService.isQueueEnabled.mockReturnValue(false)
       
       // Fix the mock
@@ -1280,12 +1280,15 @@ describe('GatewayService', () => {
     const mockDevice = {
       _id: mockDeviceId,
       user: 'user123',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
     }
     const mockReceivedSmsData = {
       message: 'Hello from test',
       sender: '+123456789',
       receivedAt: new Date(),
     }
+    const daysAgo = (days: number) =>
+      new Date(Date.now() - days * 24 * 60 * 60 * 1000)
     const mockSms = {
       _id: 'sms123',
       ...mockReceivedSmsData,
@@ -1300,7 +1303,7 @@ describe('GatewayService', () => {
       mockDeviceModel.findByIdAndUpdate.mockImplementation(() => ({
         exec: jest.fn().mockResolvedValue(true),
       }))
-      mockBillingService.canPerformAction.mockResolvedValue(true)
+      mockBillingService.canPerformAction.mockResolvedValue({ overLimit: false })
       mockWebhookService.deliverNotification.mockResolvedValue(true)
     })
 
@@ -1385,6 +1388,69 @@ describe('GatewayService', () => {
       const [{ receivedAt }] = mockSmsModel.create.mock.calls[0]
       expect(receivedAt).toBeInstanceOf(Date)
       expect(receivedAt.getTime()).toBeGreaterThanOrEqual(before)
+    })
+
+    it('keeps the received time as createdAt for a late upload', async () => {
+      const receivedAt = daysAgo(3)
+
+      await service.receiveSMS(mockDeviceId, { ...mockReceivedSmsData, receivedAt })
+
+      const [created] = mockSmsModel.create.mock.calls[0]
+      expect(created.createdAt).toEqual(receivedAt)
+      expect(created.originalCreatedAt).toBeInstanceOf(Date)
+      expect(created.originalCreatedAt.getTime()).toBeGreaterThan(receivedAt.getTime())
+    })
+
+    it('leaves createdAt to the database for a recent message', async () => {
+      await service.receiveSMS(mockDeviceId, mockReceivedSmsData)
+
+      const [created] = mockSmsModel.create.mock.calls[0]
+      expect(created).not.toHaveProperty('createdAt')
+      expect(created).not.toHaveProperty('originalCreatedAt')
+      expect(created).not.toHaveProperty('overLimit')
+    })
+
+    it('marks a message stored over the plan limit', async () => {
+      mockBillingService.canPerformAction.mockResolvedValue({ overLimit: true })
+
+      await service.receiveSMS(mockDeviceId, mockReceivedSmsData)
+
+      expect(mockSmsModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({ overLimit: true }),
+      )
+      expect(mockWebhookService.deliverNotification).toHaveBeenCalled()
+    })
+
+    describe('RECEIVED_WEBHOOK_MAX_AGE_HOURS', () => {
+      const original = process.env.RECEIVED_WEBHOOK_MAX_AGE_HOURS
+
+      afterEach(() => {
+        if (original === undefined) delete process.env.RECEIVED_WEBHOOK_MAX_AGE_HOURS
+        else process.env.RECEIVED_WEBHOOK_MAX_AGE_HOURS = original
+      })
+
+      it('stores but does not send webhooks for a message received 3 days ago', async () => {
+        delete process.env.RECEIVED_WEBHOOK_MAX_AGE_HOURS
+
+        await service.receiveSMS(mockDeviceId, {
+          ...mockReceivedSmsData,
+          receivedAt: daysAgo(3),
+        })
+
+        expect(mockSmsModel.create).toHaveBeenCalled()
+        expect(mockWebhookService.deliverNotification).not.toHaveBeenCalled()
+      })
+
+      it('sends webhooks for any age when set to 0', async () => {
+        process.env.RECEIVED_WEBHOOK_MAX_AGE_HOURS = '0'
+
+        await service.receiveSMS(mockDeviceId, {
+          ...mockReceivedSmsData,
+          receivedAt: daysAgo(3),
+        })
+
+        expect(mockWebhookService.deliverNotification).toHaveBeenCalled()
+      })
     })
   })
 

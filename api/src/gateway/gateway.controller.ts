@@ -390,7 +390,10 @@ export class GatewayController {
     summary: 'Report an incoming SMS',
     description:
       'Called by the textbee app when the phone receives a message. This is how received message history and MESSAGE_RECEIVED webhooks get their data. ' +
-      'A message with no text or no sender returns 200 with data.ignored set to true and is not stored. A missing or non-string message returns 400.',
+      'A message with no text or no sender returns 200 with data.ignored set to true and is not stored. A missing or non-string message returns 400. ' +
+      'A message is stored even when the account is over its plan limit, with overLimit set to true. ' +
+      'A message uploaded more than 24 hours after receivedAt is stored with createdAt set to receivedAt and the upload time in originalCreatedAt. ' +
+      'MESSAGE_RECEIVED webhooks are not sent for a message uploaded more than 48 hours after receivedAt.',
   })
   @ApiParam(DEVICE_ID_PARAM)
   @ApiResponse({
@@ -439,7 +442,8 @@ export class GatewayController {
       'Filter by device, direction, status, text, and time range. ' +
       'Two pagination modes: page numbers for browsing, or cursor for polling. ' +
       'To poll for new messages: request order=asc with a from timestamp, follow nextCursor until hasMore is false, then resume from the last nextCursor on the next poll. ' +
-      'Time filters apply to createdAt (when the platform stored the message); for received messages this is upload time, which can lag the receivedAt shown on the message if the device was offline.',
+      'Time filters apply to createdAt (when the platform stored the message). For received messages this is upload time, which can lag receivedAt if the device was offline. ' +
+      'A received message uploaded more than 24 hours after receivedAt is stored with createdAt set to receivedAt and the upload time in originalCreatedAt, so a poll that has already moved past receivedAt does not return it.',
   })
   @ApiExtraModels(MessagePageMetaDTO, CursorPaginationMetaDTO)
   @ApiResponse({
@@ -507,7 +511,7 @@ export class GatewayController {
     required: false,
     type: String,
     description:
-      'Inclusive lower bound on createdAt. ISO-8601 with an explicit timezone (2026-08-01T00:00:00Z or +03:00 form), or a date (2026-08-01, read as UTC midnight). A datetime without a timezone is rejected.',
+      'Inclusive lower bound on createdAt, which for a received message uploaded more than 24 hours late equals receivedAt. ISO-8601 with an explicit timezone (2026-08-01T00:00:00Z or +03:00 form), or a date (2026-08-01, read as UTC midnight). A datetime without a timezone is rejected.',
   })
   @ApiQuery({
     name: 'to',
