@@ -2,7 +2,7 @@ package com.vernu.sms.workers
 
 // Retries network errors and transient server responses, up to MAX_ATTEMPTS runs.
 object WorkerRetryPolicy {
-    const val MAX_ATTEMPTS = 10
+    const val MAX_ATTEMPTS = 26
 
     fun shouldRetry(responseCode: Int?, runAttemptCount: Int): Boolean {
         if (runAttemptCount + 1 >= MAX_ATTEMPTS) return false
