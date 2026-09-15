@@ -9,6 +9,7 @@ import { SMS } from '../gateway/schemas/sms.schema'
 import { PolarWebhookPayload } from './schemas/polar-webhook-payload.schema'
 import { CheckoutSession } from './schemas/checkout-session.schema'
 import { BillingNotificationsService } from './billing-notifications.service'
+import { BillingNotificationType } from './schemas/billing-notification.schema'
 import { UsersService } from '../users/users.service'
 import { AnalyticsService } from '../analytics/analytics.service'
 
@@ -382,6 +383,7 @@ describe('BillingService - canPerformAction account checks', () => {
     mockSubscriptionModel.findOne.mockResolvedValue(null)
     mockPlanModel.findOne.mockResolvedValue(freePlan)
     mockSmsModel.countDocuments.mockResolvedValue(0)
+    mockBillingNotifications.notifyOnce.mockResolvedValue(undefined)
   })
 
   afterEach(() => jest.restoreAllMocks())
@@ -417,14 +419,18 @@ describe('BillingService - canPerformAction account checks', () => {
     async (action) => {
       givenUser({ emailVerifiedAt: new Date() })
 
-      await expect(service.canPerformAction(userId, action, 1)).resolves.toBe(true)
+      await expect(service.canPerformAction(userId, action, 1)).resolves.toEqual({
+        overLimit: false,
+      })
     },
   )
 
   it('allows an unverified account with a waiver', async () => {
     givenUser({ emailVerificationWaivedAt: new Date() })
 
-    await expect(service.canPerformAction(userId, 'send_sms', 1)).resolves.toBe(true)
+    await expect(service.canPerformAction(userId, 'send_sms', 1)).resolves.toEqual({
+      overLimit: false,
+    })
   })
 
   describe('LIMIT_EXEMPT_USER_IDS', () => {
@@ -442,7 +448,9 @@ describe('BillingService - canPerformAction account checks', () => {
         givenUser({ emailVerifiedAt: new Date() })
         mockSmsModel.countDocuments.mockResolvedValue(1000)
 
-        await expect(service.canPerformAction(userId, action, 500)).resolves.toBe(true)
+        await expect(service.canPerformAction(userId, action, 500)).resolves.toEqual({
+          overLimit: false,
+        })
         expect(mockSmsModel.countDocuments).not.toHaveBeenCalled()
       },
     )
@@ -452,7 +460,7 @@ describe('BillingService - canPerformAction account checks', () => {
       givenUser({ emailVerifiedAt: new Date() })
       mockSmsModel.countDocuments.mockResolvedValue(300)
 
-      await expect(service.canPerformAction(userId, 'receive_sms', 1)).rejects.toMatchObject({
+      await expect(service.canPerformAction(userId, 'send_sms', 1)).rejects.toMatchObject({
         status: 429,
       })
     })
@@ -498,6 +506,71 @@ describe('BillingService - canPerformAction account checks', () => {
 
     await expect(service.canPerformAction(userId, 'send_sms', 1)).rejects.toMatchObject({
       status: 404,
+    })
+  })
+
+  describe('receives over the plan limit', () => {
+    const originalSetting = process.env.RECEIVE_SMS_OVER_LIMIT
+
+    beforeEach(() => {
+      delete process.env.RECEIVE_SMS_OVER_LIMIT
+      givenUser({ emailVerifiedAt: new Date() })
+      mockSmsModel.countDocuments
+        .mockResolvedValueOnce(10)
+        .mockResolvedValueOnce(freePlan.monthlyLimit)
+    })
+
+    afterEach(() => {
+      if (originalSetting === undefined) delete process.env.RECEIVE_SMS_OVER_LIMIT
+      else process.env.RECEIVE_SMS_OVER_LIMIT = originalSetting
+    })
+
+    it('allows the receive and marks it over the limit', async () => {
+      await expect(service.canPerformAction(userId, 'receive_sms', 1)).resolves.toEqual({
+        overLimit: true,
+      })
+      expect(mockBillingNotifications.notifyOnce).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: BillingNotificationType.MONTHLY_LIMIT_REACHED,
+          sendEmail: true,
+        }),
+      )
+    })
+
+    it('still allows the receive when the notification fails', async () => {
+      mockBillingNotifications.notifyOnce.mockRejectedValue(new Error('queue unavailable'))
+
+      await expect(service.canPerformAction(userId, 'receive_sms', 1)).resolves.toEqual({
+        overLimit: true,
+      })
+    })
+
+    it('rejects the receive when RECEIVE_SMS_OVER_LIMIT is reject', async () => {
+      process.env.RECEIVE_SMS_OVER_LIMIT = 'reject'
+
+      await expect(service.canPerformAction(userId, 'receive_sms', 1)).rejects.toMatchObject({
+        status: 429,
+      })
+    })
+
+    it('still rejects a send over the limit', async () => {
+      await expect(service.canPerformAction(userId, 'send_sms', 1)).rejects.toMatchObject({
+        status: 429,
+      })
+    })
+
+    it('does not mark a paid receive inside the extended monthly allowance', async () => {
+      const proPlan = { _id: 'plan_pro', name: 'pro', dailyLimit: -1, monthlyLimit: 5000, bulkSendLimit: -1 }
+      mockSubscriptionModel.findOne.mockResolvedValue({ plan: proPlan._id })
+      mockPlanModel.findById.mockResolvedValue(proPlan)
+      mockSmsModel.countDocuments.mockReset()
+      mockSmsModel.countDocuments
+        .mockResolvedValueOnce(10)
+        .mockResolvedValueOnce(proPlan.monthlyLimit)
+
+      await expect(service.canPerformAction(userId, 'receive_sms', 1)).resolves.toEqual({
+        overLimit: false,
+      })
     })
   })
 })
