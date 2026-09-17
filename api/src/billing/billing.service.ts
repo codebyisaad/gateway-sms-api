@@ -33,6 +33,8 @@ import {
 } from './billing-notifications.service'
 import { resolveClientAddress } from '../common/client-address'
 
+const PAID_MONTHLY_LIMIT_MULTIPLIER = 1.1
+
 @Injectable()
 export class BillingService {
   private polarApi
@@ -1136,6 +1138,19 @@ export class BillingService {
       }
 
       if (hasReachedLimit) {
+        if (
+          plan.name !== 'free' &&
+          monthlyExceeded &&
+          !dailyExceeded &&
+          !bulkExceeded &&
+          processedSmsLastMonth + value <=
+            Math.floor(
+              effectiveLimits.monthlyLimit * PAID_MONTHLY_LIMIT_MULTIPLIER,
+            )
+        ) {
+          return { overLimit: false }
+        }
+
         const storeReceive =
           action === 'receive_sms' && this.receivesOverLimitAllowed()
 
@@ -1192,23 +1207,6 @@ export class BillingService {
             notification.catch(() => {})
           } else {
             await notification
-          }
-        }
-
-        // if plan is not free and monthly limit is exceeded, give them 80% more monthly limit
-        if (
-          plan.name !== 'free' &&
-          monthlyExceeded &&
-          !dailyExceeded &&
-          !bulkExceeded
-        ) {
-          const extendedMonthlyLimit = Math.floor(
-            effectiveLimits.monthlyLimit * 1.8,
-          )
-          const exceedsExtended =
-            processedSmsLastMonth + value > extendedMonthlyLimit
-          if (!exceedsExtended) {
-            return { overLimit: false }
           }
         }
 
