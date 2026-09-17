@@ -698,11 +698,10 @@ export class BillingService {
 
     const { dailyLimit, monthlyLimit } = limits
     if (dailyLimit > 0 && used.today >= dailyLimit * 0.8 && used.today < dailyLimit) {
-      const pct = Math.round((used.today / dailyLimit) * 100)
       notify(
         BillingNotificationType.DAILY_LIMIT_APPROACHING,
-        "You're nearing today's SMS limit",
-        `You've used ${pct}% of today's SMS allocation. ${dailyLimit - used.today} messages remain for today. Consider upgrading your plan or scheduling sends for later.`,
+        "You're close to today's message limit",
+        `Your account has used ${used.today} of its ${dailyLimit} messages for today, counting sent and received. ${dailyLimit - used.today} are left.`,
         { processedSmsToday: used.today, dailyLimit },
       )
     }
@@ -711,11 +710,10 @@ export class BillingService {
       used.last30Days >= monthlyLimit * 0.8 &&
       used.last30Days < monthlyLimit
     ) {
-      const pct = Math.round((used.last30Days / monthlyLimit) * 100)
       notify(
         BillingNotificationType.MONTHLY_LIMIT_APPROACHING,
-        "You're nearing this month's SMS limit",
-        `You've used ${pct}% of the messages your plan allows over the last 30 days. ${monthlyLimit - used.last30Days} are left.`,
+        "You're close to your monthly message limit",
+        `Your account has used ${used.last30Days} of its ${monthlyLimit} messages for the last 30 days, counting sent and received. ${monthlyLimit - used.last30Days} are left.`,
         { processedSmsLastMonth: used.last30Days, monthlyLimit },
       )
     }
@@ -1087,17 +1085,17 @@ export class BillingService {
 
         if (dailyExceeded) {
           hasReachedLimit = true
-          message = `You have sent all ${effectiveLimits.dailyLimit} messages your plan allows today. Sending resumes automatically when the allowance resets at midnight, or move up a plan to carry on now.`
+          message = `Your account has used all ${effectiveLimits.dailyLimit} messages your plan allows today. Sent and received messages both count. Sending starts again at midnight, or upgrade your plan to keep sending now.`
         }
 
         if (monthlyExceeded) {
           hasReachedLimit = true
-          message = `You have sent all ${effectiveLimits.monthlyLimit} messages your plan allows over the last 30 days. Usage is counted on a rolling window, so sending resumes as your earliest messages pass that mark, or move up a plan to carry on now.`
+          message = `Your account has used its ${effectiveLimits.monthlyLimit} messages for the last 30 days. Sent and received messages both count. Sending starts again as older messages pass 30 days, or upgrade your plan to keep sending now.`
         }
 
         if (bulkExceeded) {
           hasReachedLimit = true
-          message = `That batch had ${value} recipients and your plan allows ${effectiveLimits.bulkSendLimit} per batch, so nothing was sent. Split it into smaller batches to send it as it is, or move up a plan for a larger batch size.`
+          message = `This batch has ${value} recipients, and your plan allows ${effectiveLimits.bulkSendLimit} per batch. Nothing was sent. Split it into smaller batches or upgrade your plan.`
         }
       }
 
@@ -1143,13 +1141,13 @@ export class BillingService {
         let titleForEmail = ''
         if (dailyExceeded) {
           type = BillingNotificationType.DAILY_LIMIT_REACHED
-          titleForEmail = 'Daily SMS limit reached'
+          titleForEmail = "You've reached today's message limit"
         } else if (monthlyExceeded) {
           type = BillingNotificationType.MONTHLY_LIMIT_REACHED
-          titleForEmail = 'Monthly SMS limit reached'
+          titleForEmail = "You've reached your monthly message limit"
         } else if (bulkExceeded) {
           type = BillingNotificationType.BULK_SMS_LIMIT_REACHED
-          titleForEmail = 'Bulk send limit exceeded'
+          titleForEmail = 'Your batch was too big for your plan'
         }
         if (type) {
           const notification = this.billingNotifications.notifyOnce({
