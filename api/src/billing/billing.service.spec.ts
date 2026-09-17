@@ -672,6 +672,87 @@ describe('BillingService - canPerformAction account checks', () => {
       })
     })
   })
+
+  describe('approaching limit notices', () => {
+    const proPlan = { _id: 'plan_pro', name: 'pro', dailyLimit: -1, monthlyLimit: 5000, bulkSendLimit: -1 }
+
+    const givenPaid = () => {
+      mockSubscriptionModel.findOne.mockResolvedValue({ plan: proPlan._id })
+      mockPlanModel.findById.mockResolvedValue(proPlan)
+    }
+
+    const givenCounts = (today: number, last30Days: number) =>
+      mockSmsModel.countDocuments.mockResolvedValueOnce(today).mockResolvedValueOnce(last30Days)
+
+    const noticeOf = (type: BillingNotificationType) =>
+      mockBillingNotifications.notifyOnce.mock.calls
+        .map(([input]) => input)
+        .find((input) => input.type === type)
+
+    beforeEach(() => givenUser({ emailVerifiedAt: new Date() }))
+
+    it('warns when a send brings the account to 80% of its monthly limit', async () => {
+      givenPaid()
+      givenCounts(10, 3999)
+
+      await expect(service.canPerformAction(userId, 'send_sms', 1)).resolves.toEqual({
+        overLimit: false,
+      })
+      expect(noticeOf(BillingNotificationType.MONTHLY_LIMIT_APPROACHING)?.meta).toEqual({
+        processedSmsLastMonth: 4000,
+        monthlyLimit: 5000,
+      })
+    })
+
+    it('warns when a receive brings the account to 80% of its monthly limit', async () => {
+      givenPaid()
+      givenCounts(10, 3999)
+
+      await service.canPerformAction(userId, 'receive_sms', 1)
+
+      expect(noticeOf(BillingNotificationType.MONTHLY_LIMIT_APPROACHING)).toBeDefined()
+    })
+
+    it('does not warn below 80%', async () => {
+      givenPaid()
+      givenCounts(10, 3998)
+
+      await service.canPerformAction(userId, 'send_sms', 1)
+
+      expect(mockBillingNotifications.notifyOnce).not.toHaveBeenCalled()
+    })
+
+    it('does not send the 80% warning inside the paid allowance', async () => {
+      givenPaid()
+      givenCounts(10, 5000)
+
+      await service.canPerformAction(userId, 'send_sms', 1)
+
+      expect(mockBillingNotifications.notifyOnce).not.toHaveBeenCalled()
+    })
+
+    it('warns a free account nearing its daily limit', async () => {
+      givenCounts(39, 39)
+
+      await service.canPerformAction(userId, 'send_sms', 1)
+
+      expect(noticeOf(BillingNotificationType.DAILY_LIMIT_APPROACHING)?.meta).toEqual({
+        processedSmsToday: 40,
+        dailyLimit: 50,
+      })
+      expect(noticeOf(BillingNotificationType.MONTHLY_LIMIT_APPROACHING)).toBeUndefined()
+    })
+
+    it('still allows the send when the notice fails', async () => {
+      givenPaid()
+      givenCounts(10, 3999)
+      mockBillingNotifications.notifyOnce.mockRejectedValue(new Error('queue unavailable'))
+
+      await expect(service.canPerformAction(userId, 'send_sms', 1)).resolves.toEqual({
+        overLimit: false,
+      })
+    })
+  })
 })
 
 /*
