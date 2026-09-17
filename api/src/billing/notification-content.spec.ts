@@ -44,6 +44,44 @@ describe('notification content', () => {
     }
   })
 
+  it('uses the subject as the email title for every type', () => {
+    for (const type of Object.values(BillingNotificationType)) {
+      expect(buildEmailContent(type, {}).title).toBe(NOTIFICATION_SUBJECTS[type])
+    }
+  })
+
+  it('says received messages count toward the limit', () => {
+    for (const type of [
+      BillingNotificationType.DAILY_LIMIT_APPROACHING,
+      BillingNotificationType.MONTHLY_LIMIT_APPROACHING,
+      BillingNotificationType.DAILY_LIMIT_REACHED,
+      BillingNotificationType.MONTHLY_LIMIT_REACHED,
+    ]) {
+      expect(buildEmailContent(type, {}).message).toMatch(/sent and received/i)
+    }
+  })
+
+  it('tells a user over the limit that incoming messages still arrive', () => {
+    for (const type of [
+      BillingNotificationType.DAILY_LIMIT_REACHED,
+      BillingNotificationType.MONTHLY_LIMIT_REACHED,
+    ]) {
+      expect(buildEmailContent(type, {}).message).toContain(
+        'Incoming messages still arrive',
+      )
+    }
+  })
+
+  it('does not promise incoming messages when receives over the limit are rejected', () => {
+    for (const type of [
+      BillingNotificationType.DAILY_LIMIT_REACHED,
+      BillingNotificationType.MONTHLY_LIMIT_REACHED,
+    ]) {
+      const content = buildEmailContent(type, { receivesStored: false })
+      expect(`${content.preheader} ${content.message}`).not.toMatch(/incoming/i)
+    }
+  })
+
   it('sends every upgrade CTA to the pricing page, not an anchor', () => {
     for (const type of Object.values(BillingNotificationType)) {
       const { ctaUrl, ctaLabel } = buildEmailContent(type, {})

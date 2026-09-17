@@ -23,17 +23,17 @@ const ACCOUNT_URL = 'https://app.textbee.dev/dashboard/account'
 
 export const NOTIFICATION_SUBJECTS: Record<string, string> = {
   [BillingNotificationType.DAILY_LIMIT_APPROACHING]:
-    "You've used most of today's messages",
+    "You're close to today's message limit",
   [BillingNotificationType.MONTHLY_LIMIT_APPROACHING]:
-    "You've used most of this month's messages",
+    "You're close to your monthly message limit",
   [BillingNotificationType.DAILY_LIMIT_REACHED]:
-    "You've hit today's message limit",
+    "You've reached today's message limit",
   [BillingNotificationType.MONTHLY_LIMIT_REACHED]:
-    "You've hit this month's message limit",
+    "You've reached your monthly message limit",
   [BillingNotificationType.BULK_SMS_LIMIT_REACHED]:
-    'That batch was larger than your plan allows',
+    'Your batch was too big for your plan',
   [BillingNotificationType.DEVICE_LIMIT_REACHED]:
-    "You've connected all the devices your plan allows",
+    'All your device slots are in use',
   [BillingNotificationType.EMAIL_VERIFICATION_REQUIRED]:
     'Verify your email to keep sending',
 }
@@ -69,10 +69,13 @@ const pct = (used: unknown, limit: unknown): number => {
   return Math.min(100, Math.max(0, Math.round((n(used) / total) * 100)))
 }
 
+const incomingNote = (meta: Record<string, any>): string =>
+  meta.receivesStored === false ? '' : ' Incoming messages still arrive.'
+
 const MORE_VOLUME = [
-  'A higher monthly message allowance',
-  'No daily cap, so a busy day does not stop you',
-  'Connect more Android devices to share the load',
+  'A bigger monthly message allowance',
+  'No daily cap',
+  'Room for more phones, so sends go out faster',
 ]
 
 export function buildEmailContent(
@@ -87,18 +90,18 @@ export function buildEmailContent(
       const limit = meta.dailyLimit
       const left = Math.max(0, n(limit) - n(used))
       return {
-        title: "You've used most of today's messages",
-        preheader: `${fmt(used)} of ${fmt(limit)} sent today, ${fmt(left)} left.`,
-        message: `You have sent ${fmt(used)} of the ${fmt(limit)} messages your plan allows per day, so ${fmt(left)} are left before sending pauses.`,
+        title: NOTIFICATION_SUBJECTS[type],
+        preheader: `${fmt(used)} of ${fmt(limit)} messages used today. ${fmt(left)} left.`,
+        message: `You've used ${fmt(used)} of your ${fmt(limit)} messages for today. Sent and received messages both count. You have ${fmt(left)} left.`,
         usage: {
-          label: 'Messages sent today',
+          label: 'Messages used today',
           used: fmt(used),
           limit: fmt(limit),
           percent: pct(used, limit),
         },
         resetNote:
-          'Your daily allowance resets at midnight, so you can also just pick this up tomorrow.',
-        benefitsTitle: 'If you need the headroom today',
+          'Your daily count resets at midnight, so tomorrow starts fresh.',
+        benefitsTitle: 'If you need more room today',
         benefits: MORE_VOLUME,
         ctaLabel: 'See plans',
         ctaUrl: PRICING_URL,
@@ -110,9 +113,9 @@ export function buildEmailContent(
       const limit = meta.monthlyLimit
       const left = Math.max(0, n(limit) - n(used))
       return {
-        title: "You've used most of this month's messages",
-        preheader: `${fmt(used)} of ${fmt(limit)} sent in the last 30 days, ${fmt(left)} left.`,
-        message: `You have sent ${fmt(used)} of the ${fmt(limit)} messages your plan allows, counted over the last 30 days, so ${fmt(left)} are left.`,
+        title: NOTIFICATION_SUBJECTS[type],
+        preheader: `${fmt(used)} of ${fmt(limit)} messages used in the last 30 days. ${fmt(left)} left.`,
+        message: `You've used ${fmt(used)} of your ${fmt(limit)} messages for the last 30 days. Sent and received messages both count. You have ${fmt(left)} left.`,
         usage: {
           label: 'Messages in the last 30 days',
           used: fmt(used),
@@ -122,8 +125,8 @@ export function buildEmailContent(
         // Rolling window, not a billing period: capacity returns gradually as
         // individual messages age past 30 days, not all at once on renewal.
         resetNote:
-          'This is a rolling 30 day window rather than a monthly reset, so capacity frees up gradually as your earliest messages age out.',
-        benefitsTitle: 'If you would rather not wait',
+          'The count covers a rolling 30 days, not a calendar month. Each message leaves the count 30 days after it was sent or received, so room frees up a little every day.',
+        benefitsTitle: 'If you need more room',
         benefits: MORE_VOLUME,
         ctaLabel: 'See plans',
         ctaUrl: PRICING_URL,
@@ -133,17 +136,17 @@ export function buildEmailContent(
     case BillingNotificationType.DAILY_LIMIT_REACHED: {
       const limit = meta.dailyLimit
       return {
-        title: "You've hit today's message limit",
-        preheader: `Sending resumes at midnight, or move up a plan for more headroom.`,
-        message: `You have sent all ${fmt(limit)} messages your plan allows today, so further sends will not go out until the allowance resets.`,
+        title: NOTIFICATION_SUBJECTS[type],
+        preheader: `Sending starts again at midnight.${incomingNote(meta)}`,
+        message: `You've used all ${fmt(limit)} of your messages for today. Sent and received messages both count, so sending is paused until midnight.${incomingNote(meta)}`,
         usage: {
-          label: 'Messages sent today',
+          label: 'Messages used today',
           used: fmt(limit),
           limit: fmt(limit),
           percent: 100,
         },
         resetNote:
-          'Sending starts again automatically at midnight. You do not need to do anything.',
+          "Sending starts again automatically at midnight. You don't need to do anything.",
         benefitsTitle: 'If you need to keep sending now',
         benefits: MORE_VOLUME,
         ctaLabel: 'See plans',
@@ -154,10 +157,9 @@ export function buildEmailContent(
     case BillingNotificationType.MONTHLY_LIMIT_REACHED: {
       const limit = meta.monthlyLimit
       return {
-        title: "You've hit this month's message limit",
-        preheader:
-          'Capacity returns as older messages age out, or move up a plan to carry on now.',
-        message: `You have sent all ${fmt(limit)} messages your plan allows over the last 30 days, so further sends will not go out until some of that usage ages out.`,
+        title: NOTIFICATION_SUBJECTS[type],
+        preheader: `Sending is paused.${incomingNote(meta)}`,
+        message: `You've used your ${fmt(limit)} messages for the last 30 days. Sent and received messages both count, so sending is paused for now.${incomingNote(meta)}`,
         usage: {
           label: 'Messages in the last 30 days',
           used: fmt(limit),
@@ -165,7 +167,7 @@ export function buildEmailContent(
           percent: 100,
         },
         resetNote:
-          'Usage is counted over a rolling 30 day window, so sending starts again on its own as your earliest messages pass that mark.',
+          'The count covers a rolling 30 days, so sending starts again on its own as older messages age out.',
         benefitsTitle: 'If you need to keep sending now',
         benefits: MORE_VOLUME,
         ctaLabel: 'See plans',
@@ -177,21 +179,21 @@ export function buildEmailContent(
       const limit = meta.bulkSendLimit
       const attempted = meta.attempted
       return {
-        title: 'That batch was larger than your plan allows',
-        preheader: `Split it into smaller batches, or move up a plan.`,
-        message: `You tried to send to ${fmt(attempted)} recipients in one request, and your plan allows ${fmt(limit)} per batch. Nothing was sent.`,
+        title: NOTIFICATION_SUBJECTS[type],
+        preheader: 'Nothing was sent. Split the list or upgrade.',
+        message: `Your batch had ${fmt(attempted)} recipients, and your plan allows up to ${fmt(limit)} per batch. Nothing was sent.`,
         // Deliberately no usage bar: this is attempted against a maximum, not
         // consumption against an allowance, and a full bar would imply the
         // quota is spent when it is not.
-        resetNote: `Splitting the file into batches of ${fmt(limit)} or fewer will send it as it is, at no extra cost.`,
-        benefitsTitle: 'Or move up a plan for',
+        resetNote: `Split the list into batches of ${fmt(limit)} or fewer. Splitting sends everything at no extra cost.`,
+        benefitsTitle: 'Or upgrade for',
         benefits: [
-          'A larger batch size, so a whole list goes in one request',
-          'A higher monthly message allowance',
-          'Connect more Android devices to share the load',
+          'Bigger batches, so a whole list goes out in one request',
+          'A bigger monthly message allowance',
+          'Room for more phones, so sends go out faster',
         ],
         footnote:
-          'Whatever the batch size, your phone sends one message at a time, so a large campaign is delivered steadily rather than all at once.',
+          'Your phone sends one message at a time, so a large batch goes out steadily, whatever the batch size.',
         ctaLabel: 'See plans',
         ctaUrl: PRICING_URL,
       }
@@ -200,14 +202,16 @@ export function buildEmailContent(
     case BillingNotificationType.DEVICE_LIMIT_REACHED: {
       const limit = meta.deviceLimit
       return {
-        title: "You've connected all the devices your plan allows",
-        preheader:
-          'Remove a device you no longer use, or move up a plan for more.',
-        message: `Your plan covers ${fmt(limit)} active device${n(limit) === 1 ? '' : 's'}, and they are all in use. Removing one you no longer need frees the slot straight away.`,
-        benefitsTitle: 'More devices also means',
+        title: NOTIFICATION_SUBJECTS[type],
+        preheader: 'Remove a device you no longer use, or upgrade for more.',
+        message:
+          n(limit) === 1
+            ? 'Your plan covers 1 active device, and it is in use. Remove it if you no longer need it to free the slot right away.'
+            : `Your plan covers ${fmt(limit)} active devices, and all of them are in use. Remove one you no longer need to free a slot right away.`,
+        benefitsTitle: 'More devices also give you',
         benefits: [
-          'Sends spread across several phones instead of queueing on one',
-          'A spare gateway if one phone goes offline',
+          'Sends split across several phones, so they go out faster',
+          'A backup if one phone goes offline',
         ],
         ctaLabel: 'See plans',
         ctaUrl: PRICING_URL,
@@ -216,10 +220,10 @@ export function buildEmailContent(
 
     case BillingNotificationType.EMAIL_VERIFICATION_REQUIRED: {
       return {
-        title: 'Verify your email to keep sending',
-        preheader: 'One click confirms the address on your account.',
+        title: NOTIFICATION_SUBJECTS[type],
+        preheader: 'One click confirms your email address.',
         message:
-          'Confirm the email address on your account and everything carries on as normal. It takes one click.',
+          'Confirm your email address to start sending and receiving messages. It takes one click.',
         ctaLabel: 'Verify my email',
         ctaUrl: ACCOUNT_URL,
       }

@@ -3,6 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model, Types } from 'mongoose'
 import { MailService } from '../mail/mail.service'
+import { firstName } from '../mail/first-name'
 import { buildEmailContent, subjectForType } from './notification-content'
 import {
   BillingNotification,
@@ -54,7 +55,7 @@ export class BillingNotificationsListener {
       template: 'billing-notification',
       context: {
         ...content,
-        name: user.name?.split(' ')?.[0] || 'there',
+        name: firstName(user.name),
       },
       from: undefined,
     })

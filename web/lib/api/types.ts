@@ -103,6 +103,7 @@ export interface Subscription {
   recurringInterval?: string
   subscriptionStartDate?: string
   currentPeriodEnd?: string
+  cancelAtPeriodEnd?: boolean
   customDailyLimit?: number | null
   customMonthlyLimit?: number | null
   customBulkSendLimit?: number | null

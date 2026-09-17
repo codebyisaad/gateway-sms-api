@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import {
+  AlertTriangle,
   ArrowRight,
   Calendar,
   ExternalLink,
@@ -56,9 +57,11 @@ type Meter = {
 function StatusPill({
   status,
   icon: Icon,
+  label,
 }: {
   status: SubscriptionStatus | null | undefined
   icon: LucideIcon
+  label?: string
 }) {
   const tone = subscriptionStatusTone(status)
   return (
@@ -71,7 +74,7 @@ function StatusPill({
       <Icon className={cn('h-3 w-3', tone.text)} aria-hidden />
       <span className={cn('text-xs font-medium', tone.text)}>
         {/* Never assert "Active" for a payload that carried no status. */}
-        {titleCaseStatus(status) || 'Unknown'}
+        {label ?? (titleCaseStatus(status) || 'Unknown')}
       </span>
     </div>
   )
@@ -402,12 +405,19 @@ export default function SubscriptionInfo() {
               a pill here at all was what produced "Unknown" for every free
               user. A real subscription still shows its true status, including
               Unknown when the payload genuinely omits one. */}
-          {!billing.isFree && (
-            <StatusPill
-              status={billing.status}
-              icon={subscriptionStatusIcon(billing.status)}
-            />
-          )}
+          {!billing.isFree &&
+            (billing.isCanceling ? (
+              <StatusPill
+                status='past_due'
+                icon={AlertTriangle}
+                label='Canceled'
+              />
+            ) : (
+              <StatusPill
+                status={billing.status}
+                icon={subscriptionStatusIcon(billing.status)}
+              />
+            ))}
         </div>
 
         {billing.hasBillingDates && (
@@ -417,10 +427,20 @@ export default function SubscriptionInfo() {
               value={currentSubscription?.subscriptionStartDate}
             />
             <DateTile
-              label='Next payment'
+              label={billing.isCanceling ? 'Access ends' : 'Next payment'}
               value={currentSubscription?.currentPeriodEnd}
             />
           </div>
+        )}
+
+        {billing.isCanceling && (
+          <p className='mt-3 text-xs text-amber-600 dark:text-amber-400'>
+            Your subscription will not renew. You keep {billing.planName}{' '}
+            {currentSubscription?.currentPeriodEnd
+              ? `until ${formatDate(currentSubscription.currentPeriodEnd)}`
+              : 'until the end of this billing period'}
+            , then your account moves to Free.
+          </p>
         )}
 
         <div className='mt-4 flex flex-wrap items-center gap-2'>
@@ -440,7 +460,7 @@ export default function SubscriptionInfo() {
                 target='_blank'
                 rel='noopener noreferrer'
               >
-                Manage subscription
+                {billing.isCanceling ? 'Renew subscription' : 'Manage subscription'}
                 <ExternalLink className='ml-1 h-3.5 w-3.5' aria-hidden />
               </Link>
             </Button>
@@ -484,9 +504,8 @@ export default function SubscriptionInfo() {
                   <p className='max-w-[240px]'>
                     SMS usage is measured on a rolling window, not your billing
                     cycle. Daily usage resets at 00:00 UTC and monthly usage
-                    covers a rolling 30-day window. The start and next payment
-                    dates above are just your subscription start and renewal
-                    dates.
+                    covers a rolling 30-day window. The dates above are your
+                    subscription dates, not usage resets.
                   </p>
                 </TooltipContent>
               </Tooltip>
