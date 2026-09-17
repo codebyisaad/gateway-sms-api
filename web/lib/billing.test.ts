@@ -98,6 +98,30 @@ describe('deriveBillingState', () => {
     })
   })
 
+  describe('isCanceling', () => {
+    it('is true for a paid subscription set to cancel at period end', () => {
+      expect(
+        deriveBillingState({ ...proPayload, cancelAtPeriodEnd: true })
+          .isCanceling
+      ).toBe(true)
+    })
+
+    it('is false when the subscription renews', () => {
+      expect(deriveBillingState(proPayload).isCanceling).toBe(false)
+      expect(
+        deriveBillingState({ ...proPayload, cancelAtPeriodEnd: false })
+          .isCanceling
+      ).toBe(false)
+    })
+
+    it('is false for a free account', () => {
+      expect(
+        deriveBillingState({ ...freePayload, cancelAtPeriodEnd: true })
+          .isCanceling
+      ).toBe(false)
+    })
+  })
+
   describe('canManageBilling', () => {
     it('is false for a free account with nothing to manage', () => {
       expect(deriveBillingState(freePayload).canManageBilling).toBe(false)

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { authenticate } from './session'
 import { mockApi } from './mock-api'
-import { mockFreeSubscription } from '../test/fixtures'
+import { mockFreeSubscription, mockSubscription } from '../test/fixtures'
 
 test.describe('account settings (mocked API, no real backend)', () => {
   test('/dashboard/account redirects to billing and shows the subscription', async ({
@@ -37,6 +37,21 @@ test.describe('account settings (mocked API, no real backend)', () => {
     await expect(
       page.getByRole('link', { name: /Manage subscription/i })
     ).toBeVisible()
+  })
+
+  test('a subscriber scheduled to cancel sees when access ends', async ({
+    page,
+    context,
+  }) => {
+    await authenticate(context)
+    await mockApi(page, {
+      subscription: { ...mockSubscription, cancelAtPeriodEnd: true },
+    })
+    await page.goto('/dashboard/account/billing')
+
+    await expect(page.getByText('Access ends')).toBeVisible()
+    await expect(page.getByText('Next payment')).toHaveCount(0)
+    await expect(page.getByText(/will not renew/)).toBeVisible()
   })
 
   // A free user has no subscription, so the payload carries no status. The

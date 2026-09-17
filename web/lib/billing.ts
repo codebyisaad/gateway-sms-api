@@ -16,6 +16,8 @@ export type BillingState = {
   hasBillingDates: boolean
   /** Whether the customer portal applies to this account. */
   canManageBilling: boolean
+  /** A paid subscription that ends at the period end and will not renew. */
+  isCanceling: boolean
 }
 
 /**
@@ -60,6 +62,7 @@ export function deriveBillingState(
       subscription?.subscriptionStartDate || subscription?.currentPeriodEnd
     ),
     canManageBilling: !isFree,
+    isCanceling: !isFree && subscription?.cancelAtPeriodEnd === true,
   }
 }
 

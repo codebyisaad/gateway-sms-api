@@ -182,6 +182,42 @@ describe('SubscriptionInfo', () => {
     })
   })
 
+  describe('a subscriber scheduled to cancel', () => {
+    beforeEach(() =>
+      setSubscription({ ...proSubscription, cancelAtPeriodEnd: true })
+    )
+
+    it('shows when access ends instead of a next payment', () => {
+      render(<SubscriptionInfo />)
+
+      expect(screen.getByText('Access ends')).toBeInTheDocument()
+      expect(screen.queryByText('Next payment')).not.toBeInTheDocument()
+    })
+
+    it('says the plan will not renew and when it ends', () => {
+      render(<SubscriptionInfo />)
+
+      const notice = screen.getByText(/will not renew/)
+      expect(notice).toHaveTextContent('Aug 1, 2026')
+      expect(notice).toHaveTextContent('moves to Free')
+    })
+
+    it('shows the cancellation in the status pill', () => {
+      render(<SubscriptionInfo />)
+
+      expect(screen.getByText('Canceled')).toBeInTheDocument()
+      expect(screen.queryByText('Active')).not.toBeInTheDocument()
+    })
+
+    it('offers to renew through the customer portal', () => {
+      render(<SubscriptionInfo />)
+
+      expect(
+        screen.getByRole('link', { name: /Renew subscription/ })
+      ).toHaveAttribute('href', expect.stringContaining('user%40example.com'))
+    })
+  })
+
   describe('a past due subscriber', () => {
     beforeEach(() =>
       setSubscription({ ...proSubscription, status: 'past_due' })
