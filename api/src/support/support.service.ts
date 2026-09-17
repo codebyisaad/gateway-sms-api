@@ -17,6 +17,7 @@ import {
   SupportCategory,
 } from './dto/create-support-message.dto'
 import { MailService } from '../mail/mail.service'
+import { firstName } from '../mail/first-name'
 
 @Injectable()
 export class SupportService {
@@ -68,7 +69,7 @@ export class SupportService {
         subject: `Support Request Submitted: ${createSupportMessageDto.category}-${savedMessage._id}`,
         template: 'customer-support-confirmation',
         context: {
-          name: createSupportMessageDto.name,
+          name: firstName(createSupportMessageDto.name),
           email: sanitizedDto.email,
           phone: sanitizedDto.phone || 'Not provided',
           category: sanitizedDto.category,
@@ -142,7 +143,7 @@ export class SupportService {
         subject: `Account Deletion Request: ${savedMessage._id}`,
         template: 'account-deletion-request',
         context: {
-          name: user.name,
+          name: firstName(user.name),
           email: user.email,
           message: sanitizedDto.message || 'No reason provided',
           appLogoUrl:

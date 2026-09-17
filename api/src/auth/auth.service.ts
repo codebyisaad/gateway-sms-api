@@ -16,6 +16,7 @@ import {
   PasswordResetDocument,
 } from './schemas/password-reset.schema'
 import { MailService } from '../mail/mail.service'
+import { firstName } from '../mail/first-name'
 import { TurnstileService } from '../common/turnstile.service'
 import { escapeRegExp } from '../common/escape-regexp'
 import { RequestResetPasswordInputDTO, ResetPasswordInputDTO } from './auth.dto'
@@ -300,7 +301,7 @@ export class AuthService {
       to: user.email,
       subject: 'textbee.dev - Password Reset',
       template: 'password-reset-request',
-      context: { name: user.name, resetLink, otp },
+      context: { name: firstName(user.name), resetLink, otp },
     })
 
     return acceptedResponse
@@ -366,7 +367,7 @@ export class AuthService {
       to: user.email,
       subject: 'textbee.dev - Password Reset',
       template: 'password-reset-success',
-      context: { name: user.name },
+      context: { name: firstName(user.name) },
     })
 
     return { message: 'Password reset successfully' }
@@ -440,7 +441,7 @@ export class AuthService {
       subject: 'textbee.dev - Verify Email',
       template: 'verify-email',
       context: {
-        name: user.name,
+        name: firstName(user.name),
         verificationLink,
       },
     })

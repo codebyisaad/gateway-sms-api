@@ -18,6 +18,7 @@ import mongoose from 'mongoose'
 import { SMS } from '../gateway/schemas/sms.schema'
 import { WebhookQueueService } from './queue/webhook-queue.service'
 import { MailService } from '../mail/mail.service'
+import { firstName } from '../mail/first-name'
 import { UsersService } from '../users/users.service'
 
 /**
@@ -1018,7 +1019,7 @@ export class WebhookService {
           subject: 'Your webhook was paused – textbee',
           template: 'webhook-subscription-disabled',
           context: {
-            name: user.name?.split(' ')?.[0] || 'there',
+            name: firstName(user.name),
             title: 'Your webhook was paused',
             subscriptionName: subscription.name ?? '',
             deliveryUrl: subscription.deliveryUrl ?? '',

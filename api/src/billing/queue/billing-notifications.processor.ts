@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose'
 import { Job } from 'bull'
 import { Model, Types } from 'mongoose'
 import { MailService } from '../../mail/mail.service'
+import { firstName } from '../../mail/first-name'
 import { buildEmailContent, subjectForType } from '../notification-content'
 import { BILLING_NOTIFICATION_DEDUPE_HOURS } from '../billing-notifications.service'
 import { User, UserDocument } from '../../users/schemas/user.schema'
@@ -70,7 +71,7 @@ export class BillingNotificationsProcessor {
       template: 'billing-notification',
       context: {
         ...content,
-        name: user.name?.split(' ')?.[0] || 'there',
+        name: firstName(user.name),
       },
       from: undefined,
     })
