@@ -6,7 +6,6 @@ import { Model, Types } from 'mongoose'
 import {
   BillingNotification,
   BillingNotificationDocument,
-  BillingNotificationSchema,
   BillingNotificationType,
 } from './schemas/billing-notification.schema'
 
@@ -17,6 +16,19 @@ type NotifyOnceInput = {
   message: string
   meta?: Record<string, any>
   sendEmail?: boolean
+}
+
+export const BILLING_NOTIFICATION_DEDUPE_HOURS: Record<
+  BillingNotificationType,
+  number
+> = {
+  [BillingNotificationType.EMAIL_VERIFICATION_REQUIRED]: 24,
+  [BillingNotificationType.DAILY_LIMIT_REACHED]: 12,
+  [BillingNotificationType.MONTHLY_LIMIT_REACHED]: 48,
+  [BillingNotificationType.BULK_SMS_LIMIT_REACHED]: 12,
+  [BillingNotificationType.DEVICE_LIMIT_REACHED]: 48,
+  [BillingNotificationType.DAILY_LIMIT_APPROACHING]: 24,
+  [BillingNotificationType.MONTHLY_LIMIT_APPROACHING]: 48,
 }
 
 @Injectable()
@@ -62,9 +74,11 @@ export class BillingNotificationsService {
       {
         delay: 30000,
         attempts: 3,
-        removeOnComplete: false,
         backoff: { type: 'exponential', delay: 2000 },
-        jobId: updated._id.toString(),
+        // one pending job per sent email; a finished job must not block the next one
+        jobId: `${updated._id}:${updated.lastEmailSentAt?.getTime() ?? 0}`,
+        removeOnComplete: true,
+        removeOnFail: true,
       },
     )
 
@@ -79,23 +93,8 @@ export class BillingNotificationsService {
   }
 
   private getDedupeWindowMs(type: BillingNotificationType) {
-    const hours = {
-      [BillingNotificationType.EMAIL_VERIFICATION_REQUIRED]: 24,
-      [BillingNotificationType.DAILY_LIMIT_REACHED]: 12,
-      [BillingNotificationType.MONTHLY_LIMIT_REACHED]: 48,
-      [BillingNotificationType.BULK_SMS_LIMIT_REACHED]: 12,
-      [BillingNotificationType.DEVICE_LIMIT_REACHED]: 48,
-      [BillingNotificationType.DAILY_LIMIT_APPROACHING]: 24,
-      [BillingNotificationType.MONTHLY_LIMIT_APPROACHING]: 48,
-    }[type]
-
-    return hours * 60 * 60 * 1000
+    return BILLING_NOTIFICATION_DEDUPE_HOURS[type] * 60 * 60 * 1000
   }
-
-  // upsert-based single-document per user+type; dedupe controlled by window
-
 }
 
 export { BillingNotificationType }
-
-
