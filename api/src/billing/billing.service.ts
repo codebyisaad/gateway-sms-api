@@ -1162,6 +1162,7 @@ export class BillingService {
               dailyLimit: effectiveLimits.dailyLimit,
               monthlyLimit: effectiveLimits.monthlyLimit,
               bulkSendLimit: effectiveLimits.bulkSendLimit,
+              receivesStored: this.receivesOverLimitAllowed(),
             },
             sendEmail: true,
           })

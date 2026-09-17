@@ -69,6 +69,9 @@ const pct = (used: unknown, limit: unknown): number => {
   return Math.min(100, Math.max(0, Math.round((n(used) / total) * 100)))
 }
 
+const incomingNote = (meta: Record<string, any>): string =>
+  meta.receivesStored === false ? '' : ' Incoming messages still arrive.'
+
 const MORE_VOLUME = [
   'A bigger monthly message allowance',
   'No daily cap',
@@ -134,9 +137,8 @@ export function buildEmailContent(
       const limit = meta.dailyLimit
       return {
         title: NOTIFICATION_SUBJECTS[type],
-        preheader:
-          'Sending starts again at midnight. Incoming messages still arrive.',
-        message: `You've used all ${fmt(limit)} of your messages for today. Sent and received messages both count, so sending is paused until midnight. Incoming messages still arrive.`,
+        preheader: `Sending starts again at midnight.${incomingNote(meta)}`,
+        message: `You've used all ${fmt(limit)} of your messages for today. Sent and received messages both count, so sending is paused until midnight.${incomingNote(meta)}`,
         usage: {
           label: 'Messages used today',
           used: fmt(limit),
@@ -156,8 +158,8 @@ export function buildEmailContent(
       const limit = meta.monthlyLimit
       return {
         title: NOTIFICATION_SUBJECTS[type],
-        preheader: 'Sending is paused. Incoming messages still arrive.',
-        message: `You've used your ${fmt(limit)} messages for the last 30 days. Sent and received messages both count, so sending is paused for now. Incoming messages still arrive.`,
+        preheader: `Sending is paused.${incomingNote(meta)}`,
+        message: `You've used your ${fmt(limit)} messages for the last 30 days. Sent and received messages both count, so sending is paused for now.${incomingNote(meta)}`,
         usage: {
           label: 'Messages in the last 30 days',
           used: fmt(limit),

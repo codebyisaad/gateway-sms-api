@@ -553,6 +553,17 @@ describe('BillingService - canPerformAction account checks', () => {
       })
     })
 
+    it('tells the notice whether receives over the limit are stored', async () => {
+      process.env.RECEIVE_SMS_OVER_LIMIT = 'reject'
+
+      await expect(service.canPerformAction(userId, 'receive_sms', 1)).rejects.toMatchObject({
+        status: 429,
+      })
+      expect(mockBillingNotifications.notifyOnce).toHaveBeenCalledWith(
+        expect.objectContaining({ meta: expect.objectContaining({ receivesStored: false }) }),
+      )
+    })
+
     it('still rejects a send over the limit', async () => {
       await expect(service.canPerformAction(userId, 'send_sms', 1)).rejects.toMatchObject({
         status: 429,

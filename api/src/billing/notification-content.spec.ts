@@ -72,6 +72,16 @@ describe('notification content', () => {
     }
   })
 
+  it('does not promise incoming messages when receives over the limit are rejected', () => {
+    for (const type of [
+      BillingNotificationType.DAILY_LIMIT_REACHED,
+      BillingNotificationType.MONTHLY_LIMIT_REACHED,
+    ]) {
+      const content = buildEmailContent(type, { receivesStored: false })
+      expect(`${content.preheader} ${content.message}`).not.toMatch(/incoming/i)
+    }
+  })
+
   it('sends every upgrade CTA to the pricing page, not an anchor', () => {
     for (const type of Object.values(BillingNotificationType)) {
       const { ctaUrl, ctaLabel } = buildEmailContent(type, {})
