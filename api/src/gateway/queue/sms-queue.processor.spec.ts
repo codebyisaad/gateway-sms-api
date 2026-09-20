@@ -190,6 +190,22 @@ describe('SmsQueueProcessor.handleSendSms', () => {
     )
   })
 
+  it('does not re-mark messages when persistence fails after the push', async () => {
+    jest.spyOn(firebaseAdmin.messaging(), 'sendEach').mockResolvedValue({
+      successCount: 1,
+      failureCount: 0,
+      responses: [{ success: true, messageId: 'fcm-1' }],
+    } as any)
+    // once: clearAllMocks keeps implementations, so a persistent rejection
+    // would leak into the next test
+    mockSmsModel.bulkWrite.mockRejectedValueOnce(new Error('write concern'))
+
+    await expect(processor.handleSendSms(job)).rejects.toThrow('write concern')
+
+    // the blanket failure belongs to a failed handoff, not a failed write
+    expect(mockSmsModel.updateMany).not.toHaveBeenCalled()
+  })
+
   it('withholds the push for a listed device', async () => {
     process.env.FCM_SEND_SKIP_DEVICE_IDS = 'other-device,' + deviceId
     const sendEach = jest.spyOn(firebaseAdmin.messaging(), 'sendEach')

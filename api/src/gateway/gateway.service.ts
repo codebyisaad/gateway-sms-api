@@ -1563,11 +1563,15 @@ export class GatewayService {
     // What the phone did before the radio: both are reported on every status
     // for the same send, so a later report just restates them
     const pushReceivedAt = resolveReportedAt(dto.pushReceivedAtInMillis)
-    if (pushReceivedAt) {
+    const sendAttemptedAt = resolveReportedAt(dto.sendAttemptedAtInMillis)
+    // A reversed pair would make the on-device wait negative, so drop both
+    // rather than store a leg that cannot have happened.
+    const orderedTiming =
+      !pushReceivedAt || !sendAttemptedAt || sendAttemptedAt >= pushReceivedAt
+    if (pushReceivedAt && orderedTiming) {
       updateData.pushReceivedAt = pushReceivedAt
     }
-    const sendAttemptedAt = resolveReportedAt(dto.sendAttemptedAtInMillis)
-    if (sendAttemptedAt) {
+    if (sendAttemptedAt && orderedTiming) {
       updateData.sendAttemptedAt = sendAttemptedAt
     }
     const reportAttempt = resolveReportAttempt(dto.reportAttempt)
@@ -1583,10 +1587,9 @@ export class GatewayService {
       updateData.deliveredAt = new Date(dto.deliveredAtInMillis);
     } else if (normalizedStatus === 'failed') {
       // The timestamp is optional; the failure itself is not
+      // One validated value for both the field and the history entry
       const failedAt = resolveReportedAt(dto.failedAtInMillis) ?? new Date()
-      if (dto.failedAtInMillis) {
-        updateData.failedAt = new Date(dto.failedAtInMillis);
-      }
+      updateData.failedAt = failedAt
       updateData.errorCode = dto.errorCode;
       updateData.errorMessage = dto.errorMessage || 'Unknown error';
       failureEntry = errorHistoryPush(

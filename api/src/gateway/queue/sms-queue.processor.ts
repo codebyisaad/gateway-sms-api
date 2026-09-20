@@ -80,6 +80,7 @@ export class SmsQueueProcessor {
   async handleSendSms(job: Job<any>) {
     // this.logger.debug(`Processing send-sms job ${job.id}`)
     const { deviceId, fcmMessages, smsBatchId } = job.data
+    let pushHandedOff = false
 
     const device = await this.deviceModel
       .findById(deviceId)
@@ -109,6 +110,9 @@ export class SmsQueueProcessor {
       const response = skipped
         ? skippedBatchResponse(fcmMessages.length)
         : await firebaseAdmin.messaging().sendEach(fcmMessages)
+      // The push is done. Anything that throws from here on is a persistence
+      // problem, and must not mark handed-off messages as failed a second time.
+      pushHandedOff = true
 
       // this.logger.debug(
       //   `SMS Job ${job.id}( smsBatchId: ${smsBatchId}) completed, success: ${response.successCount}, failures: ${response.failureCount}`,
@@ -276,6 +280,11 @@ export class SmsQueueProcessor {
       return response
     } catch (error) {
       this.logger.error(`Failed to process SMS job ${job.id}`, error)
+
+      // Only the handoff itself gets the blanket failure. After it, the
+      // per-message outcome is already written and a storage error here would
+      // otherwise overwrite dispatched rows and double-count attempts.
+      if (pushHandedOff) throw error
 
       // Mark all individual SMS in this batch of FCM messages as failed
       const failedSmsIds: string[] = []
