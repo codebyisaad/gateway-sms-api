@@ -21,3 +21,7 @@ local.properties
 /app/src/dev/google-services.json
 /app/src/prod/google-services.json
 /app/google-services.json
+# Android Studio drops files here and they ship inside the APK
+/app/src/main/assets/
+# local release output
+/app/prod/

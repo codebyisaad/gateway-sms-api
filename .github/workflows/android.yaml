@@ -69,6 +69,8 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
 
+      # A throwaway key. APKs built here cannot update an installed app;
+      # release builds are signed locally with the long-lived keystore.
       - name: Create debug keystore
         run: |
           mkdir -p ~/.android
@@ -81,15 +83,15 @@ jobs:
           mkdir -p android/app/src/${{ matrix.variant }}
           printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/src/${{ matrix.variant }}/google-services.json
 
+      - name: Run unit tests
+        run: |
+          cd android
+          ./gradlew test${{ matrix.variant }}DebugUnitTest
+
       - name: Build
         run: |
           cd android
           ./gradlew assemble${{ matrix.variant }}Debug
-
-      # - name: Run Android tests
-      #   run: |
-      #     cd android
-      #     ./gradlew test${{ matrix.variant }}DebugUnitTest
 
       - name: Sanitize ref name for artifact
         shell: bash
@@ -134,6 +136,8 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
 
+      # A throwaway key. APKs built here cannot update an installed app;
+      # release builds are signed locally with the long-lived keystore.
       - name: Create debug keystore
         run: |
           mkdir -p ~/.android
@@ -141,6 +145,11 @@ jobs:
 
       - name: Use sample google-services.json
         run: cp android/app/src/dev/google-services.sample.json android/app/src/dev/google-services.json
+
+      - name: Run unit tests
+        run: |
+          cd android
+          ./gradlew testDevDebugUnitTest
 
       - name: Build
         run: |
