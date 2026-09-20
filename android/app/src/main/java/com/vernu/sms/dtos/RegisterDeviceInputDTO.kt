@@ -14,6 +14,6 @@ class RegisterDeviceInputDTO {
     var osApiLevel: Int? = null
     var osBuildFingerprint: String? = null
     var appVersionName: String? = null
-    var appVersionCode: Int = 0
+    var appVersionCode: Int? = null
     var simInfo: SimInfoCollectionDTO? = null
 }

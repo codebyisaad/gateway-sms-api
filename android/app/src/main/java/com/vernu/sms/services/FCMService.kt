@@ -15,6 +15,7 @@ import com.google.gson.Gson
 import com.vernu.sms.ApiManager
 import com.vernu.sms.AppConstants
 import com.vernu.sms.R
+import com.vernu.sms.TextbeeUtils
 import com.vernu.sms.activities.MainActivity
 import com.vernu.sms.dtos.RegisterDeviceInputDTO
 import com.vernu.sms.dtos.RegisterDeviceResponseDTO
@@ -50,7 +51,7 @@ class FCMService : FirebaseMessagingService() {
                 sendSMS(smsPayload, pushReceivedAt)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error processing FCM message: ${e.message}")
+            TextbeeUtils.logException(e, "Error processing FCM message")
         }
     }
 

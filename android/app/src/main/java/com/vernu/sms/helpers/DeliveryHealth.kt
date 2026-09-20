@@ -1,0 +1,47 @@
+package com.vernu.sms.helpers
+
+import android.Manifest
+import android.content.Context
+import android.os.Build
+import com.vernu.sms.AppConstants
+import com.vernu.sms.TextbeeUtils
+
+data class DeliveryHealthSnapshot(
+    val hasSendSmsPermission: Boolean,
+    val hasReceiveSmsPermission: Boolean,
+    val hasReadPhoneStatePermission: Boolean,
+    val hasPostNotificationsPermission: Boolean,
+    val stickyNotificationEnabled: Boolean,
+    val usingLegacyUi: Boolean,
+)
+
+// The raw reads behind each check, so the checks can be tested without Android
+interface DeliveryHealthProbe {
+    val sdkInt: Int
+    fun isPermissionGranted(permission: String): Boolean
+    fun prefBoolean(key: String, default: Boolean): Boolean
+}
+
+object DeliveryHealth {
+    private const val POST_NOTIFICATIONS = "android.permission.POST_NOTIFICATIONS"
+
+    fun evaluate(probe: DeliveryHealthProbe): DeliveryHealthSnapshot = DeliveryHealthSnapshot(
+        hasSendSmsPermission = probe.isPermissionGranted(Manifest.permission.SEND_SMS),
+        hasReceiveSmsPermission = probe.isPermissionGranted(Manifest.permission.RECEIVE_SMS),
+        hasReadPhoneStatePermission = probe.isPermissionGranted(Manifest.permission.READ_PHONE_STATE),
+        // Only Android 13 and up has the permission; older versions always show notifications
+        hasPostNotificationsPermission = probe.sdkInt < 33 || probe.isPermissionGranted(POST_NOTIFICATIONS),
+        stickyNotificationEnabled = probe.prefBoolean(AppConstants.SHARED_PREFS_STICKY_NOTIFICATION_ENABLED_KEY, false),
+        usingLegacyUi = !probe.prefBoolean(AppConstants.SHARED_PREFS_USE_NEW_UI_KEY, true),
+    )
+
+    fun evaluate(context: Context): DeliveryHealthSnapshot = evaluate(AndroidProbe(context))
+
+    private class AndroidProbe(private val context: Context) : DeliveryHealthProbe {
+        override val sdkInt: Int get() = Build.VERSION.SDK_INT
+        override fun isPermissionGranted(permission: String) =
+            TextbeeUtils.isPermissionGranted(context, permission)
+        override fun prefBoolean(key: String, default: Boolean) =
+            SharedPreferenceHelper.getSharedPreferenceBoolean(context, key, default)
+    }
+}

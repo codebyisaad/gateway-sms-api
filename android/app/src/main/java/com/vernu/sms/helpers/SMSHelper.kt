@@ -55,7 +55,7 @@ object SMSHelper {
             }
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Exception when sending SMS: ${e.message}")
+            TextbeeUtils.logException(e, "Exception when sending SMS")
             reportSendingError(context, smsId, smsBatchId, e.message, timing)
             false
         }
@@ -103,7 +103,7 @@ object SMSHelper {
             }
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Exception when sending SMS from specific SIM: ${e.message}")
+            TextbeeUtils.logException(e, "Exception when sending SMS from specific SIM")
             reportSendingError(context, smsId, smsBatchId, e.message, timing)
             false
         }
