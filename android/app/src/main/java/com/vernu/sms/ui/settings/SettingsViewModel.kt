@@ -34,6 +34,7 @@ data class SettingsState(
     val appVersionName: String = BuildConfig.VERSION_NAME,
     val appVersionCode: Int = BuildConfig.VERSION_CODE,
     val isSavingDeviceName: Boolean = false,
+    val healthIssueCount: Int = 0,
     val snackbarMessage: String? = null
 )
 
@@ -96,10 +97,13 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
                 isStickyNotificationEnabled = isSticky,
                 smsSendDelaySeconds = smsDelay,
                 preferredSimSubscriptionId = preferredSim,
-                availableSims = sims
+                availableSims = sims,
+                healthIssueCount = DeliveryHealthViewModel.issueCount(context)
             )
         }
     }
+
+    fun refresh() = loadSettings()
 
     fun setGatewayEnabled(enabled: Boolean) {
         val deviceId = _state.value.deviceId
@@ -150,7 +154,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
             TextbeeUtils.logException(e, "Sticky notification toggle failed")
             _state.update { it.copy(snackbarMessage = "Could not start notification service") }
         }
-        _state.update { it.copy(isStickyNotificationEnabled = enabled) }
+        _state.update { it.copy(isStickyNotificationEnabled = enabled, healthIssueCount = DeliveryHealthViewModel.issueCount(context)) }
     }
 
     fun setSmsSendDelay(seconds: Int) {

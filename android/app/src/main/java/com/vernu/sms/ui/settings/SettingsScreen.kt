@@ -15,6 +15,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -26,8 +29,8 @@ import com.vernu.sms.BuildConfig
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onSwitchToLegacy: () -> Unit,
     onNavigateToFilters: () -> Unit,
+    onNavigateToHealth: () -> Unit,
     onDisconnect: () -> Unit,
     viewModel: SettingsViewModel = viewModel()
 ) {
@@ -37,7 +40,6 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     var showDisconnectDialog by remember { mutableStateOf(false) }
-    var showLegacyDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var showDeviceNameDialog by remember { mutableStateOf(false) }
     var editedDeviceName by remember(state.deviceName) { mutableStateOf(state.deviceName) }
@@ -49,6 +51,15 @@ fun SettingsScreen(
             snackbarHostState.showSnackbar(it)
             viewModel.clearSnackbar()
         }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     Scaffold(
@@ -187,6 +198,21 @@ fun SettingsScreen(
 
             SettingsSectionHeader("System")
 
+            SettingsRow(
+                icon = Icons.Default.HealthAndSafety,
+                title = "Delivery health",
+                subtitle = when (state.healthIssueCount) {
+                    0 -> "All checks pass"
+                    1 -> "1 item to check"
+                    else -> "${state.healthIssueCount} items to check"
+                },
+                onClick = onNavigateToHealth,
+                trailing = {
+                    Icon(Icons.Default.ChevronRight, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            )
+
             SettingsSwitchRow(
                 icon = Icons.Default.NotificationsActive,
                 title = "Sticky Notification",
@@ -300,19 +326,6 @@ fun SettingsScreen(
                 }
             )
 
-            SettingsSectionHeader("UI")
-
-            SettingsRow(
-                icon = Icons.Default.SwapHoriz,
-                title = "Switch to Legacy UI",
-                subtitle = "Use the original interface",
-                onClick = { showLegacyDialog = true },
-                trailing = {
-                    Icon(Icons.Default.ChevronRight, contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            )
-
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
@@ -370,23 +383,6 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDelayDialog = false }) { Text("Cancel") }
-            }
-        )
-    }
-
-    if (showLegacyDialog) {
-        AlertDialog(
-            onDismissRequest = { showLegacyDialog = false },
-            title = { Text("Switch to Legacy UI?") },
-            text = { Text("You can switch back from the Legacy Settings screen anytime.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showLegacyDialog = false
-                    onSwitchToLegacy()
-                }) { Text("Switch") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showLegacyDialog = false }) { Text("Cancel") }
             }
         )
     }

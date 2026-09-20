@@ -18,3 +18,12 @@ val Gray900 = Color(0xFF111827)
 val Green500 = Color(0xFF22C55E)
 val Red500   = Color(0xFFEF4444)
 val Blue500  = Color(0xFF3B82F6)
+val Amber500 = Color(0xFFF59E0B)
+
+// State colors. Orange stays the brand accent and never means "ok".
+object StatusColors {
+    val success = Green500
+    val warning = Amber500
+    val error = Red500
+    val info = Blue500
+}
