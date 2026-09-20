@@ -35,6 +35,7 @@ import {
   receivedSmsIgnoreReason,
   resolveReceivedAt,
 } from './received-sms-input'
+import { appVersionMetadata } from './app-version-metadata'
 import { toDirection, toStoredType } from './message-direction'
 import { ParsedMessageQuery } from './message-query'
 import { smsAndroidConfig } from './fcm-push-options'
@@ -560,6 +561,8 @@ export class GatewayService {
         ...(smsData.simSubscriptionId !== undefined && {
           simSubscriptionId: smsData.simSubscriptionId,
         }),
+        // The build the device was on when queued; the status report replaces it
+        metadata: appVersionMetadata(device),
       })
       const updatedSMSData = {
         smsId: sms._id,
@@ -786,6 +789,8 @@ export class GatewayService {
       scheduledTime?: number
       smsId: Types.ObjectId
     }> = []
+    // The build the device was on when queued; the status report replaces it
+    const queuedAppVersion = appVersionMetadata(device)
     const smsDocumentsToInsert: Array<Record<string, any>> = []
     const smsToFcmMetadata: Array<{
       recipient: string
@@ -829,6 +834,7 @@ export class GatewayService {
           ...(smsData.simSubscriptionId !== undefined && {
             simSubscriptionId: smsData.simSubscriptionId,
           }),
+          metadata: queuedAppVersion,
         })
         smsToFcmMetadata.push({
           recipient,
@@ -1094,7 +1100,11 @@ export class GatewayService {
     return response
   }
 
-  async receiveSMS(deviceId: string, dto: ReceivedSMSDTO): Promise<any> {
+  async receiveSMS(
+    deviceId: string,
+    dto: ReceivedSMSDTO,
+    sdkClient?: string,
+  ): Promise<any> {
     const device = await this.deviceModel.findById(deviceId)
 
     if (!device) {
@@ -1140,6 +1150,11 @@ export class GatewayService {
       dto.receivedAt,
     )
 
+    // Narrowed here, not only in isMalformedReceivedSms, so the filter below
+    // provably takes strings and never a query operator object.
+    const sender = typeof dto.sender === 'string' ? dto.sender : ''
+    const message = typeof dto.message === 'string' ? dto.message : ''
+
     // Deduplication: Check for existing SMS with same device, sender, message, and receivedAt (within ±5 seconds tolerance)
     const toleranceMs = 5000 // 5 seconds
     const toleranceStart = new Date(receivedAt.getTime() - toleranceMs)
@@ -1148,8 +1163,8 @@ export class GatewayService {
     const existingSMS = await this.smsModel.findOne({
       device: device._id,
       type: SMSType.RECEIVED,
-      sender: dto.sender,
-      message: dto.message,
+      sender,
+      message,
       receivedAt: {
         $gte: toleranceStart,
         $lte: toleranceEnd,
@@ -1166,13 +1181,14 @@ export class GatewayService {
     const sms = await this.smsModel.create({
       user: device.user,
       device: device._id,
-      message: dto.message,
+      message,
       type: SMSType.RECEIVED,
       status: 'received',
-      sender: dto.sender,
+      sender,
       receivedAt,
       ...lateArrivalTimestamps(receivedAt, device.createdAt),
       ...(overLimit && { overLimit: true }),
+      metadata: appVersionMetadata(device, sdkClient),
     })
 
     this.deviceModel
@@ -1484,7 +1500,11 @@ export class GatewayService {
     return messages.map((m) => ({ ...m, direction: toDirection(m.type) }))
   }
 
-  async updateSMSStatus(deviceId: string, dto: UpdateSMSStatusDTO): Promise<any> {
+  async updateSMSStatus(
+    deviceId: string,
+    dto: UpdateSMSStatusDTO,
+    sdkClient?: string,
+  ): Promise<any> {
 
     const device = await this.deviceModel.findById(deviceId);
     
@@ -1527,6 +1547,13 @@ export class GatewayService {
     const updateData: any = {
       status: normalizedStatus, // Store normalized status
     };
+
+    // Dotted paths so other metadata keys survive.
+    for (const [key, value] of Object.entries(
+      appVersionMetadata(device, sdkClient),
+    )) {
+      updateData[`metadata.${key}`] = value;
+    }
     
     // Update timestamps based on status
     if (normalizedStatus === 'sent' && dto.sentAtInMillis) {

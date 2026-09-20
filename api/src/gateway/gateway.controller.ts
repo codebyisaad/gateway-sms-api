@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Headers,
   Param,
   Patch,
   Post,
@@ -407,8 +408,12 @@ export class GatewayController {
   @HttpCode(HttpStatus.OK)
   @Post('/devices/:id/receive-sms')
   @UseGuards(AuthGuard, CanModifyDevice)
-  async receiveSMS(@Param('id') deviceId: string, @Body() dto: ReceivedSMSDTO) {
-    const data = await this.gatewayService.receiveSMS(deviceId, dto)
+  async receiveSMS(
+    @Param('id') deviceId: string,
+    @Body() dto: ReceivedSMSDTO,
+    @Headers('x-sdk-client') sdkClient?: string,
+  ) {
+    const data = await this.gatewayService.receiveSMS(deviceId, dto, sdkClient)
     return { data }
   }
 
@@ -431,8 +436,9 @@ export class GatewayController {
   async receiveSMSLegacy(
     @Param('id') deviceId: string,
     @Body() dto: ReceivedSMSDTO,
+    @Headers('x-sdk-client') sdkClient?: string,
   ) {
-    return await this.receiveSMS(deviceId, dto)
+    return await this.receiveSMS(deviceId, dto, sdkClient)
   }
 
   @ApiOperation({
@@ -701,8 +707,13 @@ export class GatewayController {
   async updateSMSStatus(
     @Param('id') deviceId: string,
     @Body() dto: UpdateSMSStatusDTO,
+    @Headers('x-sdk-client') sdkClient?: string,
   ) {
-    const data = await this.gatewayService.updateSMSStatus(deviceId, dto);
+    const data = await this.gatewayService.updateSMSStatus(
+      deviceId,
+      dto,
+      sdkClient,
+    );
     return { data };
   }
 
