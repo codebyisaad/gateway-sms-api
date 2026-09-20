@@ -46,6 +46,7 @@ describe('GatewayService', () => {
     find: jest.fn(),
     findById: jest.fn(),
     findByIdAndUpdate: jest.fn(),
+    findOneAndUpdate: jest.fn(),
     findByIdAndDelete: jest.fn(),
     exists: jest.fn(),
     updateMany: jest.fn(),
@@ -2387,8 +2388,16 @@ describe('GatewayService', () => {
 
     beforeEach(() => {
       mockDeviceModel.findById.mockResolvedValue(currentDevice)
-      mockDeviceModel.findByIdAndUpdate.mockResolvedValue(currentDevice)
+      mockDeviceModel.findOneAndUpdate.mockReset()
+      mockDeviceModel.findOneAndUpdate.mockResolvedValue(currentDevice)
       mockSmsModel.findOneAndUpdate.mockReset()
+    })
+
+    it('falls back to the registered version before the first heartbeat', async () => {
+      mockDeviceModel.findById.mockResolvedValue({ _id: deviceId, appVersionCode: 20 })
+      mockSmsModel.findOneAndUpdate.mockResolvedValue(null)
+
+      expect(await service.claimPendingMessages(deviceId)).toEqual([])
     })
 
     it('refuses an app version without the dedupe store', async () => {
@@ -2411,15 +2420,18 @@ describe('GatewayService', () => {
       })
     })
 
-    it('refuses a second poll inside the cooldown', async () => {
-      mockDeviceModel.findById.mockResolvedValue({
-        ...currentDevice,
-        lastPendingPollAt: new Date(Date.now() - 60_000),
-      })
+    it('refuses a second poll inside the cooldown, decided by one conditional update', async () => {
+      mockDeviceModel.findOneAndUpdate.mockResolvedValue(null)
 
       await expect(service.claimPendingMessages(deviceId)).rejects.toMatchObject({
         status: HttpStatus.TOO_MANY_REQUESTS,
       })
+      const [filter, update] = mockDeviceModel.findOneAndUpdate.mock.calls[0]
+      expect(filter._id).toBe(deviceId)
+      expect(filter.$or[0]).toEqual({ lastPendingPollAt: { $exists: false } })
+      expect(filter.$or[1].lastPendingPollAt.$lt).toBeInstanceOf(Date)
+      expect(update).toEqual({ $set: { lastPendingPollAt: expect.any(Date) } })
+      expect(mockSmsModel.findOneAndUpdate).not.toHaveBeenCalled()
     })
 
     it('claims one message at a time until none is left, in request order', async () => {
@@ -2441,9 +2453,7 @@ describe('GatewayService', () => {
       expect(update.$set.status).toBe('dispatched')
       expect(update.$inc).toEqual({ dispatchAttempts: 1 })
       expect(options.sort).toEqual({ requestedAt: 1 })
-      expect(mockDeviceModel.findByIdAndUpdate).toHaveBeenCalledWith(deviceId, {
-        $set: { lastPendingPollAt: expect.any(Date) },
-      })
+      expect(mockDeviceModel.findOneAndUpdate).toHaveBeenCalledTimes(1)
     })
 
     it('returns an empty list when nothing is waiting', async () => {

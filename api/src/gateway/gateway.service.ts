@@ -1807,7 +1807,9 @@ const updatedSms = await this.smsModel.findByIdAndUpdate(
       )
     }
 
-    const versionCode = device.appVersionInfo?.versionCode ?? 0
+    // Heartbeats write appVersionInfo; registration writes appVersionCode
+    const versionCode =
+      device.appVersionInfo?.versionCode ?? device.appVersionCode ?? 0
     if (versionCode < RECOVERY_MIN_VERSION_CODE) {
       throw new HttpException(
         { success: false, error: 'This app version cannot recover messages' },
@@ -1815,19 +1817,25 @@ const updatedSms = await this.smsModel.findByIdAndUpdate(
       )
     }
 
+    // One conditional update both checks and takes the cooldown, so two
+    // polls arriving together cannot both pass it
     const now = new Date()
-    if (
-      device.lastPendingPollAt &&
-      now.getTime() - device.lastPendingPollAt.getTime() < POLL_COOLDOWN_MS
-    ) {
+    const admitted = await this.deviceModel.findOneAndUpdate(
+      {
+        _id: deviceId,
+        $or: [
+          { lastPendingPollAt: { $exists: false } },
+          { lastPendingPollAt: { $lt: new Date(now.getTime() - POLL_COOLDOWN_MS) } },
+        ],
+      },
+      { $set: { lastPendingPollAt: now } },
+    )
+    if (!admitted) {
       throw new HttpException(
         { success: false, error: 'Polled too recently' },
         HttpStatus.TOO_MANY_REQUESTS,
       )
     }
-    await this.deviceModel.findByIdAndUpdate(deviceId, {
-      $set: { lastPendingPollAt: now },
-    })
 
     const claimed: any[] = []
     while (claimed.length < CLAIM_LIMIT) {
