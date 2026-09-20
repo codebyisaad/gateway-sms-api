@@ -161,6 +161,7 @@ object HeartbeatHelper {
                 )
                 DeviceConfig.save(context, body.config)
                 Log.d(TAG, "Heartbeat sent successfully")
+                if (body.pendingCount > 0) RecoveryPoll.run(context, "heartbeat")
                 true
             } else {
                 Log.e(TAG, "Failed to send heartbeat. Response code: ${response.code()}")

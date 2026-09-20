@@ -24,6 +24,7 @@ import androidx.navigation.compose.rememberNavController
 import com.vernu.sms.AppConstants
 import com.vernu.sms.activities.MainActivity
 import com.vernu.sms.helpers.HeartbeatManager
+import com.vernu.sms.helpers.RecoveryPoll
 import com.vernu.sms.helpers.SharedPreferenceHelper
 import com.vernu.sms.ui.dashboard.DashboardScreen
 import com.vernu.sms.ui.messages.ComposeScreen
@@ -43,6 +44,7 @@ class NewMainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        RecoveryPoll.runAsync(this, "app_open")
         setContent {
             TextbeeTheme {
                 val navController = rememberNavController()
