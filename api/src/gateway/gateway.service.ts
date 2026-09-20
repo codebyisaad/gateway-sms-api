@@ -1150,6 +1150,11 @@ export class GatewayService {
       dto.receivedAt,
     )
 
+    // Narrowed here, not only in isMalformedReceivedSms, so the filter below
+    // provably takes strings and never a query operator object.
+    const sender = typeof dto.sender === 'string' ? dto.sender : ''
+    const message = typeof dto.message === 'string' ? dto.message : ''
+
     // Deduplication: Check for existing SMS with same device, sender, message, and receivedAt (within ±5 seconds tolerance)
     const toleranceMs = 5000 // 5 seconds
     const toleranceStart = new Date(receivedAt.getTime() - toleranceMs)
@@ -1158,8 +1163,8 @@ export class GatewayService {
     const existingSMS = await this.smsModel.findOne({
       device: device._id,
       type: SMSType.RECEIVED,
-      sender: dto.sender,
-      message: dto.message,
+      sender,
+      message,
       receivedAt: {
         $gte: toleranceStart,
         $lte: toleranceEnd,
@@ -1176,10 +1181,10 @@ export class GatewayService {
     const sms = await this.smsModel.create({
       user: device.user,
       device: device._id,
-      message: dto.message,
+      message,
       type: SMSType.RECEIVED,
       status: 'received',
-      sender: dto.sender,
+      sender,
       receivedAt,
       ...lateArrivalTimestamps(receivedAt, device.createdAt),
       ...(overLimit && { overLimit: true }),
