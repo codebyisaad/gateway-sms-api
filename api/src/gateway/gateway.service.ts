@@ -381,11 +381,12 @@ export class GatewayService {
       )
     }
 
-    await this.deviceTombstoneModel.updateOne(
-      { deviceId: new Types.ObjectId(deviceId) },
+    const id = new Types.ObjectId(deviceId)
+    const written = await this.deviceTombstoneModel.updateOne(
+      { deviceId: id },
       {
         $setOnInsert: {
-          deviceId: new Types.ObjectId(deviceId),
+          deviceId: id,
           userId: device.user,
           deletedAt: new Date(),
           device,
@@ -394,7 +395,17 @@ export class GatewayService {
       { upsert: true },
     )
 
-    await this.deviceModel.findByIdAndDelete(deviceId)
+    try {
+      await this.deviceModel.findByIdAndDelete(deviceId)
+    } catch (error) {
+      // The record must not outlive a delete that did not happen, or the
+      // device reads as gone while it is still live. Only a record this call
+      // created is taken back.
+      if (written.upsertedCount) {
+        await this.deviceTombstoneModel.deleteOne({ deviceId: id })
+      }
+      throw error
+    }
 
     return { success: true }
   }

@@ -72,6 +72,7 @@ describe('GatewayService', () => {
 
   const mockDeviceTombstoneModel = {
     updateOne: jest.fn(),
+    deleteOne: jest.fn(),
   }
 
   const mockAuthService = {
@@ -817,6 +818,35 @@ describe('GatewayService', () => {
       expect(update.$setOnInsert.userId).toBe(mockUserId)
       expect(update.$setOnInsert.deletedAt).toBeInstanceOf(Date)
       expect(options).toEqual({ upsert: true })
+    })
+
+    it('should take back the tombstone when the delete fails', async () => {
+      leanFindById(mockDevice)
+      mockDeviceTombstoneModel.updateOne.mockResolvedValue({ upsertedCount: 1 })
+      mockDeviceModel.findByIdAndDelete.mockRejectedValueOnce(
+        new Error('write failed'),
+      )
+
+      await expect(service.deleteDevice(mockDeviceId)).rejects.toThrow(
+        'write failed',
+      )
+      expect(
+        String(mockDeviceTombstoneModel.deleteOne.mock.calls[0][0].deviceId),
+      ).toBe(mockDeviceId)
+    })
+
+    it('should keep an earlier tombstone when a retry fails', async () => {
+      leanFindById(mockDevice)
+      // Matched, not inserted: the tombstone predates this call.
+      mockDeviceTombstoneModel.updateOne.mockResolvedValue({ upsertedCount: 0 })
+      mockDeviceModel.findByIdAndDelete.mockRejectedValueOnce(
+        new Error('write failed'),
+      )
+
+      await expect(service.deleteDevice(mockDeviceId)).rejects.toThrow(
+        'write failed',
+      )
+      expect(mockDeviceTombstoneModel.deleteOne).not.toHaveBeenCalled()
     })
 
     it('should throw an error if device does not exist', async () => {

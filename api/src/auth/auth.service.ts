@@ -642,7 +642,7 @@ export class AuthService {
       )
     }
 
-    await this.apiKeyTombstoneModel.updateOne(
+    const written = await this.apiKeyTombstoneModel.updateOne(
       { apiKeyId: id },
       {
         $setOnInsert: {
@@ -655,7 +655,17 @@ export class AuthService {
       { upsert: true },
     )
 
-    await this.apiKeyModel.deleteOne({ _id: id })
+    try {
+      await this.apiKeyModel.deleteOne({ _id: id })
+    } catch (error) {
+      // The record must not outlive a delete that did not happen, or the key
+      // reads as gone while it still exists. Only a record this call created
+      // is taken back.
+      if (written.upsertedCount) {
+        await this.apiKeyTombstoneModel.deleteOne({ apiKeyId: id })
+      }
+      throw error
+    }
   }
 
   async revokeApiKey(apiKeyId: string) {

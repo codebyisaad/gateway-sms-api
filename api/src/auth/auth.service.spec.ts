@@ -28,6 +28,7 @@ const build = () => {
 
   const apiKeyTombstoneModel = {
     updateOne: jest.fn().mockResolvedValue({ upsertedCount: 1 }),
+    deleteOne: jest.fn().mockResolvedValue({ deletedCount: 1 }),
   }
 
   const usersService = {
@@ -368,6 +369,29 @@ describe('AuthService', () => {
       expect(apiKeyTombstoneModel.updateOne.mock.invocationCallOrder[0]).toBeLessThan(
         apiKeyModel.deleteOne.mock.invocationCallOrder[0],
       )
+    })
+
+    it('takes back the record when the delete fails', async () => {
+      const { service, apiKeyModel, apiKeyTombstoneModel } = build()
+      leanFindOne(apiKeyModel, revokedKey)
+      apiKeyModel.deleteOne.mockRejectedValueOnce(new Error('write failed'))
+
+      await expect(service.deleteApiKey(apiKeyId)).rejects.toThrow('write failed')
+
+      expect(String(apiKeyTombstoneModel.deleteOne.mock.calls[0][0].apiKeyId)).toBe(
+        apiKeyId,
+      )
+    })
+
+    it('keeps an earlier record when a retry fails', async () => {
+      const { service, apiKeyModel, apiKeyTombstoneModel } = build()
+      leanFindOne(apiKeyModel, revokedKey)
+      // Matched, not inserted: the record predates this call.
+      apiKeyTombstoneModel.updateOne.mockResolvedValueOnce({ upsertedCount: 0 })
+      apiKeyModel.deleteOne.mockRejectedValueOnce(new Error('write failed'))
+
+      await expect(service.deleteApiKey(apiKeyId)).rejects.toThrow('write failed')
+      expect(apiKeyTombstoneModel.deleteOne).not.toHaveBeenCalled()
     })
 
     it('records nothing when the key does not exist', async () => {
