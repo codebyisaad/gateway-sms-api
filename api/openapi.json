@@ -962,6 +962,31 @@
               "PHYSICAL_SIM",
               "ESIM"
             ]
+          },
+          "serviceState": {
+            "type": "string",
+            "description": "Whether the SIM had network service when the device last reported.",
+            "enum": [
+              "IN_SERVICE",
+              "OUT_OF_SERVICE",
+              "EMERGENCY_ONLY",
+              "POWER_OFF",
+              "UNKNOWN"
+            ]
+          },
+          "simState": {
+            "type": "string",
+            "description": "State of the SIM card itself, as reported by Android.",
+            "example": "READY"
+          },
+          "isRoaming": {
+            "type": "boolean",
+            "description": "Whether the SIM was roaming when the device last reported."
+          },
+          "signalLevel": {
+            "type": "number",
+            "description": "Signal strength on a 0 to 4 scale, where 0 is no signal.",
+            "example": 3
           }
         },
         "required": [
@@ -1112,6 +1137,28 @@
             "type": "string",
             "description": "Device locale.",
             "example": "en_US"
+          },
+          "lastUpdated": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When this reading was taken."
+          }
+        }
+      },
+      "PowerInfoDTO": {
+        "type": "object",
+        "properties": {
+          "isIgnoringBatteryOptimizations": {
+            "type": "boolean",
+            "description": "Whether the app is exempt from battery optimization. When false, Android may delay the app in the background."
+          },
+          "isDeviceIdleMode": {
+            "type": "boolean",
+            "description": "Whether the device was in Doze at the last heartbeat."
+          },
+          "isPowerSaveMode": {
+            "type": "boolean",
+            "description": "Whether battery saver was on at the last heartbeat."
           },
           "lastUpdated": {
             "format": "date-time",
@@ -1284,6 +1331,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/DeviceSystemInfoDTO"
+              }
+            ]
+          },
+          "powerInfo": {
+            "description": "Android power state reported at the last heartbeat. Explains a device that is online but slow to send.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PowerInfoDTO"
               }
             ]
           },
@@ -1718,6 +1773,20 @@
             "type": "string",
             "description": "When the push service accepted the message for delivery to the device. Does not mean the device has received it; sentAt is the first device-confirmed timestamp."
           },
+          "dispatchAttempts": {
+            "type": "number",
+            "description": "How many times the message has been handed to the push service. Normally 1; higher when a message was dispatched again."
+          },
+          "pushReceivedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the device received the push for this message. Absent for messages handled by app versions that do not report it."
+          },
+          "sendAttemptedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the device handed the message to the radio. The gap to sentAt is time spent in the radio; the gap from pushReceivedAt is time the message waited on the device."
+          },
           "sentAt": {
             "format": "date-time",
             "type": "string",
@@ -1893,6 +1962,20 @@
             "format": "date-time",
             "type": "string",
             "description": "When the push service accepted the message for delivery to the device. Does not mean the device has received it; sentAt is the first device-confirmed timestamp."
+          },
+          "dispatchAttempts": {
+            "type": "number",
+            "description": "How many times the message has been handed to the push service. Normally 1; higher when a message was dispatched again."
+          },
+          "pushReceivedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the device received the push for this message. Absent for messages handled by app versions that do not report it."
+          },
+          "sendAttemptedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the device handed the message to the radio. The gap to sentAt is time spent in the radio; the gap from pushReceivedAt is time the message waited on the device."
           },
           "sentAt": {
             "format": "date-time",

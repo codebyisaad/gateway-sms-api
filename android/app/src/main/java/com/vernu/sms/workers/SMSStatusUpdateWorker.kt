@@ -54,6 +54,7 @@ class SMSStatusUpdateWorker(context: Context, workerParams: WorkerParameters) : 
         }
 
         val smsDTO = Gson().fromJson(smsDtoJson, SMSDTO::class.java)
+        smsDTO.reportAttempt = runAttemptCount + 1
 
         return try {
             val response = ApiManager.getApiService().updateSMSStatus(deviceId, apiKey, smsDTO).execute()

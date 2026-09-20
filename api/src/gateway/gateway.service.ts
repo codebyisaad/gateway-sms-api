@@ -36,6 +36,11 @@ import {
   resolveReceivedAt,
 } from './received-sms-input'
 import { appVersionMetadata } from './app-version-metadata'
+import { errorHistoryPush } from './error-history'
+import {
+  resolveReportAttempt,
+  resolveReportedAt,
+} from './status-report-input'
 import { toDirection, toStoredType } from './message-direction'
 import { ParsedMessageQuery } from './message-query'
 import { smsAndroidConfig } from './fcm-push-options'
@@ -1555,21 +1560,52 @@ export class GatewayService {
       updateData[`metadata.${key}`] = value;
     }
     
+    // What the phone did before the radio: both are reported on every status
+    // for the same send, so a later report just restates them
+    const pushReceivedAt = resolveReportedAt(dto.pushReceivedAtInMillis)
+    const sendAttemptedAt = resolveReportedAt(dto.sendAttemptedAtInMillis)
+    // A reversed pair would make the on-device wait negative, so drop both
+    // rather than store a leg that cannot have happened.
+    const orderedTiming =
+      !pushReceivedAt || !sendAttemptedAt || sendAttemptedAt >= pushReceivedAt
+    if (pushReceivedAt && orderedTiming) {
+      updateData.pushReceivedAt = pushReceivedAt
+    }
+    if (sendAttemptedAt && orderedTiming) {
+      updateData.sendAttemptedAt = sendAttemptedAt
+    }
+    const reportAttempt = resolveReportAttempt(dto.reportAttempt)
+    if (reportAttempt !== undefined) {
+      updateData['metadata.statusReportAttempt'] = reportAttempt
+    }
+
     // Update timestamps based on status
+    let failureEntry: { $push: Record<string, any> } | null = null
     if (normalizedStatus === 'sent' && dto.sentAtInMillis) {
       updateData.sentAt = new Date(dto.sentAtInMillis);
     } else if (normalizedStatus === 'delivered' && dto.deliveredAtInMillis) {
       updateData.deliveredAt = new Date(dto.deliveredAtInMillis);
-    } else if (normalizedStatus === 'failed' && dto.failedAtInMillis) {
-      updateData.failedAt = new Date(dto.failedAtInMillis);
+    } else if (normalizedStatus === 'failed') {
+      // The timestamp is optional; the failure itself is not
+      // One validated value for both the field and the history entry
+      const failedAt = resolveReportedAt(dto.failedAtInMillis) ?? new Date()
+      updateData.failedAt = failedAt
       updateData.errorCode = dto.errorCode;
       updateData.errorMessage = dto.errorMessage || 'Unknown error';
+      failureEntry = errorHistoryPush(
+        {
+          code: dto.errorCode,
+          message: updateData.errorMessage,
+          source: 'device',
+        },
+        failedAt,
+      )
     }
     
     // Update the SMS
 const updatedSms = await this.smsModel.findByIdAndUpdate(
   dto.smsId,
-  { $set: updateData },
+  { $set: updateData, ...(failureEntry ?? {}) },
   { new: true } 
 );
     
@@ -1824,6 +1860,57 @@ const updatedSms = await this.smsModel.findByIdAndUpdate(
         updateData['systemInfo.locale'] = input.locale
       }
       updateData['systemInfo.lastUpdated'] = now
+    }
+
+    // Update memoryInfo if provided
+    if (
+      input.memoryFreeBytes !== undefined ||
+      input.memoryTotalBytes !== undefined ||
+      input.memoryMaxBytes !== undefined
+    ) {
+      if (input.memoryFreeBytes !== undefined) {
+        updateData['memoryInfo.freeBytes'] = input.memoryFreeBytes
+      }
+      if (input.memoryTotalBytes !== undefined) {
+        updateData['memoryInfo.totalBytes'] = input.memoryTotalBytes
+      }
+      if (input.memoryMaxBytes !== undefined) {
+        updateData['memoryInfo.maxBytes'] = input.memoryMaxBytes
+      }
+      updateData['memoryInfo.lastUpdated'] = now
+    }
+
+    // Update storageInfo if provided
+    if (
+      input.storageAvailableBytes !== undefined ||
+      input.storageTotalBytes !== undefined
+    ) {
+      if (input.storageAvailableBytes !== undefined) {
+        updateData['storageInfo.availableBytes'] = input.storageAvailableBytes
+      }
+      if (input.storageTotalBytes !== undefined) {
+        updateData['storageInfo.totalBytes'] = input.storageTotalBytes
+      }
+      updateData['storageInfo.lastUpdated'] = now
+    }
+
+    // Update powerInfo if provided
+    if (
+      input.isIgnoringBatteryOptimizations !== undefined ||
+      input.isDeviceIdleMode !== undefined ||
+      input.isPowerSaveMode !== undefined
+    ) {
+      if (input.isIgnoringBatteryOptimizations !== undefined) {
+        updateData['powerInfo.isIgnoringBatteryOptimizations'] =
+          input.isIgnoringBatteryOptimizations
+      }
+      if (input.isDeviceIdleMode !== undefined) {
+        updateData['powerInfo.isDeviceIdleMode'] = input.isDeviceIdleMode
+      }
+      if (input.isPowerSaveMode !== undefined) {
+        updateData['powerInfo.isPowerSaveMode'] = input.isPowerSaveMode
+      }
+      updateData['powerInfo.lastUpdated'] = now
     }
 
     // Update simInfo if provided

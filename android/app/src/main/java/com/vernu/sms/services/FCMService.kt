@@ -35,6 +35,7 @@ class FCMService : FirebaseMessagingService() {
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         Log.d(TAG, remoteMessage.data.toString())
+        val pushReceivedAt = System.currentTimeMillis()
 
         try {
             val messageType = remoteMessage.data["type"]
@@ -46,7 +47,7 @@ class FCMService : FirebaseMessagingService() {
             val smsPayload = Gson().fromJson(remoteMessage.data["smsData"], SMSPayload::class.java)
 
             if (remoteMessage.data.isNotEmpty()) {
-                sendSMS(smsPayload)
+                sendSMS(smsPayload, pushReceivedAt)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error processing FCM message: ${e.message}")
@@ -77,7 +78,7 @@ class FCMService : FirebaseMessagingService() {
         HeartbeatManager.scheduleHeartbeat(this)
     }
 
-    private fun sendSMS(smsPayload: SMSPayload?) {
+    private fun sendSMS(smsPayload: SMSPayload?, pushReceivedAt: Long) {
         if (smsPayload == null) {
             Log.e(TAG, "SMS payload is null")
             return
@@ -92,7 +93,8 @@ class FCMService : FirebaseMessagingService() {
         for (recipient in recipients) {
             SmsSendWorker.enqueue(
                 this, recipient, smsPayload.message ?: "",
-                smsPayload.smsId, smsPayload.smsBatchId, smsPayload.simSubscriptionId
+                smsPayload.smsId, smsPayload.smsBatchId, smsPayload.simSubscriptionId,
+                pushReceivedAt
             )
         }
 

@@ -199,6 +199,10 @@ export class Device {
           mnc: String,
           countryIso: String,
           subscriptionType: String,
+          serviceState: String,
+          simState: String,
+          isRoaming: Boolean,
+          signalLevel: Number,
         },
       ],
     },
@@ -216,7 +220,28 @@ export class Device {
       mnc?: string
       countryIso?: string
       subscriptionType?: string
+      serviceState?: string
+      simState?: string
+      isRoaming?: boolean
+      signalLevel?: number
     }>
+  }
+
+  // What the OS is doing to the app in the background. A device can be online
+  // and healthy here and still not send, which is the case this makes visible.
+  @Prop({
+    type: {
+      isIgnoringBatteryOptimizations: Boolean,
+      isDeviceIdleMode: Boolean,
+      isPowerSaveMode: Boolean,
+      lastUpdated: Date,
+    },
+  })
+  powerInfo: {
+    isIgnoringBatteryOptimizations?: boolean
+    isDeviceIdleMode?: boolean
+    isPowerSaveMode?: boolean
+    lastUpdated?: Date
   }
 
   // set by { timestamps: true }; declared here for typing only, no @Prop

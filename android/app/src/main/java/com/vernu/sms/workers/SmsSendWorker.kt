@@ -6,6 +6,7 @@ import androidx.work.*
 import com.vernu.sms.AppConstants
 import com.vernu.sms.TextbeeUtils
 import com.vernu.sms.helpers.SMSHelper
+import com.vernu.sms.helpers.SendTiming
 import com.vernu.sms.helpers.SharedPreferenceHelper
 
 class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(context, workerParams) {
@@ -18,10 +19,13 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
         const val KEY_SMS_ID = "sms_id"
         const val KEY_SMS_BATCH_ID = "sms_batch_id"
         const val KEY_SIM_SUBSCRIPTION_ID = "sim_subscription_id"
+        const val KEY_PUSH_RECEIVED_AT = "push_received_at"
 
+        @JvmOverloads
         fun enqueue(
             context: Context, phone: String, message: String,
-            smsId: String?, smsBatchId: String?, simSubscriptionId: Int?
+            smsId: String?, smsBatchId: String?, simSubscriptionId: Int?,
+            pushReceivedAtMillis: Long = 0
         ) {
             val inputData = Data.Builder()
                 .putString(KEY_PHONE, phone)
@@ -29,6 +33,7 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
                 .putString(KEY_SMS_ID, smsId)
                 .putString(KEY_SMS_BATCH_ID, smsBatchId)
                 .putInt(KEY_SIM_SUBSCRIPTION_ID, simSubscriptionId ?: -1)
+                .putLong(KEY_PUSH_RECEIVED_AT, pushReceivedAtMillis)
                 .build()
 
             val workRequest = OneTimeWorkRequest.Builder(SmsSendWorker::class.java)
@@ -49,6 +54,7 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
         val smsId = inputData.getString(KEY_SMS_ID)
         val smsBatchId = inputData.getString(KEY_SMS_BATCH_ID)
         val simSubscriptionId = inputData.getInt(KEY_SIM_SUBSCRIPTION_ID, -1)
+        val pushReceivedAt = inputData.getLong(KEY_PUSH_RECEIVED_AT, 0)
 
         if (phone == null || message == null || smsId == null) {
             Log.e(TAG, "Missing required parameters")
@@ -58,10 +64,14 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
         val context = applicationContext
         val resolvedSim = resolveSim(context, simSubscriptionId)
 
+        // Stamped here, so the gap to sentAt is radio time and the gap from
+        // pushReceivedAt is time this message waited in the worker queue
+        val timing = SendTiming(pushReceivedAt, System.currentTimeMillis())
+
         if (resolvedSim != null) {
-            SMSHelper.sendSMSFromSpecificSim(phone, message, resolvedSim, smsId, smsBatchId ?: "", context)
+            SMSHelper.sendSMSFromSpecificSim(phone, message, resolvedSim, smsId, smsBatchId ?: "", context, timing)
         } else {
-            SMSHelper.sendSMS(phone, message, smsId, smsBatchId ?: "", context)
+            SMSHelper.sendSMS(phone, message, smsId, smsBatchId ?: "", context, timing)
         }
 
         val delaySeconds = SharedPreferenceHelper.getSharedPreferenceInt(

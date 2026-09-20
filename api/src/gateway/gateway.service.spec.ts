@@ -1874,6 +1874,76 @@ describe('GatewayService', () => {
         expect(update.$set['metadata.appVersionAt']).toBeInstanceOf(Date)
         expect(update.$set['metadata.client']).toBeUndefined()
       })
+
+      const reportingDevice = () => {
+        mockDeviceModel.findById.mockResolvedValue({
+          _id: OWN_DEVICE,
+          user: 'user_1',
+        })
+        mockSmsModel.findById.mockResolvedValue({
+          _id: 'own_sms',
+          device: OWN_DEVICE,
+          status: 'dispatched',
+        })
+        mockSmsModel.findByIdAndUpdate.mockResolvedValue({
+          _id: 'own_sms',
+          status: 'sent',
+        })
+      }
+
+      it('stores the phone-side timestamps and the report attempt', async () => {
+        reportingDevice()
+        const pushReceived = Date.now() - 4000
+        const sendAttempted = Date.now() - 1500
+
+        await service.updateSMSStatus(OWN_DEVICE, {
+          smsId: 'own_sms',
+          status: 'sent',
+          sentAtInMillis: Date.now(),
+          pushReceivedAtInMillis: pushReceived,
+          sendAttemptedAtInMillis: sendAttempted,
+          reportAttempt: 3,
+        } as any)
+
+        const update = mockSmsModel.findByIdAndUpdate.mock.calls[0][1]
+        expect(update.$set.pushReceivedAt).toEqual(new Date(pushReceived))
+        expect(update.$set.sendAttemptedAt).toEqual(new Date(sendAttempted))
+        expect(update.$set['metadata.statusReportAttempt']).toBe(3)
+      })
+
+      it('ignores a phone timestamp that cannot be real', async () => {
+        reportingDevice()
+
+        await service.updateSMSStatus(OWN_DEVICE, {
+          smsId: 'own_sms',
+          status: 'sent',
+          pushReceivedAtInMillis: 0,
+          sendAttemptedAtInMillis: Date.now() + 90 * 60 * 60 * 1000,
+        } as any)
+
+        const update = mockSmsModel.findByIdAndUpdate.mock.calls[0][1]
+        expect(update.$set.pushReceivedAt).toBeUndefined()
+        expect(update.$set.sendAttemptedAt).toBeUndefined()
+      })
+
+      it('appends a device failure to the error history', async () => {
+        reportingDevice()
+
+        await service.updateSMSStatus(OWN_DEVICE, {
+          smsId: 'own_sms',
+          status: 'failed',
+          errorCode: 'NO_SERVICE',
+          errorMessage: 'no carrier',
+        } as any)
+
+        const update = mockSmsModel.findByIdAndUpdate.mock.calls[0][1]
+        expect(update.$set.errorCode).toBe('NO_SERVICE')
+        const history = update.$push['metadata.errorHistory']
+        expect(history.$slice).toBe(-5)
+        expect(history.$each[0]).toEqual(
+          expect.objectContaining({ code: 'NO_SERVICE', source: 'device' }),
+        )
+      })
     })
   })
 
@@ -2177,6 +2247,90 @@ describe('GatewayService', () => {
       )
       expect(result.data).toHaveLength(1)
       expect(result.data[0].message).toBe('price (usd)')
+    })
+  })
+
+  describe('heartbeat', () => {
+    const deviceId = 'device_hb'
+
+    beforeEach(() => {
+      mockDeviceModel.findById.mockResolvedValue({
+        _id: deviceId,
+        user: 'user_1',
+        name: 'Pixel',
+      })
+      mockDeviceModel.findByIdAndUpdate.mockResolvedValue({
+        _id: deviceId,
+        name: 'Pixel',
+      })
+    })
+
+    const heartbeatUpdate = () =>
+      mockDeviceModel.findByIdAndUpdate.mock.calls[0][1].$set
+
+    it('stores the android power state', async () => {
+      await service.heartbeat(deviceId, {
+        isIgnoringBatteryOptimizations: false,
+        isDeviceIdleMode: true,
+        isPowerSaveMode: false,
+      } as any)
+
+      const update = heartbeatUpdate()
+      expect(update['powerInfo.isIgnoringBatteryOptimizations']).toBe(false)
+      expect(update['powerInfo.isDeviceIdleMode']).toBe(true)
+      expect(update['powerInfo.isPowerSaveMode']).toBe(false)
+      expect(update['powerInfo.lastUpdated']).toBeInstanceOf(Date)
+    })
+
+    it('stores memory and storage, which were accepted but dropped before', async () => {
+      await service.heartbeat(deviceId, {
+        memoryFreeBytes: 120,
+        memoryTotalBytes: 240,
+        memoryMaxBytes: 480,
+        storageAvailableBytes: 900,
+        storageTotalBytes: 1800,
+      } as any)
+
+      const update = heartbeatUpdate()
+      expect(update['memoryInfo.freeBytes']).toBe(120)
+      expect(update['memoryInfo.totalBytes']).toBe(240)
+      expect(update['memoryInfo.maxBytes']).toBe(480)
+      expect(update['storageInfo.availableBytes']).toBe(900)
+      expect(update['storageInfo.totalBytes']).toBe(1800)
+    })
+
+    it('keeps the reported SIM service state', async () => {
+      await service.heartbeat(deviceId, {
+        simInfo: {
+          sims: [
+            {
+              subscriptionId: 1,
+              serviceState: 'OUT_OF_SERVICE',
+              simState: 'READY',
+              isRoaming: false,
+              signalLevel: 0,
+            },
+          ],
+        },
+      } as any)
+
+      const update = heartbeatUpdate()
+      expect(update.simInfo.sims[0]).toEqual(
+        expect.objectContaining({
+          serviceState: 'OUT_OF_SERVICE',
+          signalLevel: 0,
+        }),
+      )
+      expect(update.simInfo.lastUpdated).toBeInstanceOf(Date)
+    })
+
+    it('writes no power keys when the device reports none', async () => {
+      await service.heartbeat(deviceId, { batteryPercentage: 80 } as any)
+
+      const update = heartbeatUpdate()
+      expect(
+        Object.keys(update).some((key) => key.startsWith('powerInfo.')),
+      ).toBe(false)
     })
   })
 })

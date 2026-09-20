@@ -79,6 +79,44 @@ export class SimInfoDTO {
     enum: ['PHYSICAL_SIM', 'ESIM'],
   })
   subscriptionType?: string
+
+  @ApiProperty({
+    type: String,
+    required: false,
+    description:
+      'Whether the SIM had network service when the device last reported.',
+    enum: [
+      'IN_SERVICE',
+      'OUT_OF_SERVICE',
+      'EMERGENCY_ONLY',
+      'POWER_OFF',
+      'UNKNOWN',
+    ],
+  })
+  serviceState?: string
+
+  @ApiProperty({
+    type: String,
+    required: false,
+    description: 'State of the SIM card itself, as reported by Android.',
+    example: 'READY',
+  })
+  simState?: string
+
+  @ApiProperty({
+    type: Boolean,
+    required: false,
+    description: 'Whether the SIM was roaming when the device last reported.',
+  })
+  isRoaming?: boolean
+
+  @ApiProperty({
+    type: Number,
+    required: false,
+    description: 'Signal strength on a 0 to 4 scale, where 0 is no signal.',
+    example: 3,
+  })
+  signalLevel?: number
 }
 
 export class SimInfoCollectionDTO {
@@ -500,6 +538,37 @@ export class DeviceUptimeInfoDTO {
   lastUpdated?: Date
 }
 
+export class PowerInfoDTO {
+  @ApiProperty({
+    type: Boolean,
+    required: false,
+    description:
+      'Whether the app is exempt from battery optimization. When false, Android may delay the app in the background.',
+  })
+  isIgnoringBatteryOptimizations?: boolean
+
+  @ApiProperty({
+    type: Boolean,
+    required: false,
+    description: 'Whether the device was in Doze at the last heartbeat.',
+  })
+  isDeviceIdleMode?: boolean
+
+  @ApiProperty({
+    type: Boolean,
+    required: false,
+    description: 'Whether battery saver was on at the last heartbeat.',
+  })
+  isPowerSaveMode?: boolean
+
+  @ApiProperty({
+    type: Date,
+    required: false,
+    description: 'When this reading was taken.',
+  })
+  lastUpdated?: Date
+}
+
 export class MemoryInfoDTO {
   @ApiProperty({
     type: Number,
@@ -780,6 +849,14 @@ export class DeviceDTO {
   systemInfo?: DeviceSystemInfoDTO
 
   @ApiProperty({
+    type: PowerInfoDTO,
+    required: false,
+    description:
+      'Android power state reported at the last heartbeat. Explains a device that is online but slow to send.',
+  })
+  powerInfo?: PowerInfoDTO
+
+  @ApiProperty({
     type: SimInfoCollectionDTO,
     required: false,
     description: 'SIMs installed in the device.',
@@ -901,6 +978,30 @@ export class RetrieveSMSDTO {
       'When the push service accepted the message for delivery to the device. Does not mean the device has received it; sentAt is the first device-confirmed timestamp.',
   })
   dispatchedAt?: Date
+
+  @ApiProperty({
+    type: Number,
+    required: false,
+    description:
+      'How many times the message has been handed to the push service. Normally 1; higher when a message was dispatched again.',
+  })
+  dispatchAttempts?: number
+
+  @ApiProperty({
+    type: Date,
+    required: false,
+    description:
+      'When the device received the push for this message. Absent for messages handled by app versions that do not report it.',
+  })
+  pushReceivedAt?: Date
+
+  @ApiProperty({
+    type: Date,
+    required: false,
+    description:
+      'When the device handed the message to the radio. The gap to sentAt is time spent in the radio; the gap from pushReceivedAt is time the message waited on the device.',
+  })
+  sendAttemptedAt?: Date
 
   @ApiProperty({
     type: Date,
@@ -1136,6 +1237,29 @@ export class UpdateSMSStatusDTO {
     description: 'Error message if the message failed',
   })
   errorMessage?: string
+
+  @ApiProperty({
+    type: Number,
+    required: false,
+    description:
+      'When the device received the push for this message (in milliseconds)',
+  })
+  pushReceivedAtInMillis?: number
+
+  @ApiProperty({
+    type: Number,
+    required: false,
+    description:
+      'When the device handed this message to the radio (in milliseconds)',
+  })
+  sendAttemptedAtInMillis?: number
+
+  @ApiProperty({
+    type: Number,
+    required: false,
+    description: 'Which attempt of the device retry loop filed this report',
+  })
+  reportAttempt?: number
 }
 
 export class HeartbeatInputDTO {
@@ -1265,6 +1389,28 @@ export class HeartbeatInputDTO {
     description: 'SMS send delay in seconds (0-3600), used by device queue',
   })
   smsSendDelaySeconds?: number
+
+  @ApiProperty({
+    type: Boolean,
+    required: false,
+    description:
+      'Whether the app is exempt from battery optimization on the device.',
+  })
+  isIgnoringBatteryOptimizations?: boolean
+
+  @ApiProperty({
+    type: Boolean,
+    required: false,
+    description: 'Whether the device was in Doze when it reported.',
+  })
+  isDeviceIdleMode?: boolean
+
+  @ApiProperty({
+    type: Boolean,
+    required: false,
+    description: 'Whether battery saver was on when the device reported.',
+  })
+  isPowerSaveMode?: boolean
 
   @ApiProperty({
     type: SimInfoCollectionDTO,

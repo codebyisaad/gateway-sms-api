@@ -11,4 +11,10 @@ class SimInfoDTO {
     var mnc: String? = null
     var countryIso: String? = null
     var subscriptionType: String? = null
+
+    // Radio state at collection time, so a quiet device can be explained
+    var serviceState: String? = null
+    var simState: String? = null
+    var isRoaming: Boolean? = null
+    var signalLevel: Int? = null
 }

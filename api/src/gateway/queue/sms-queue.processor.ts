@@ -15,6 +15,7 @@ import {
   shouldSkipFcmSend,
   skippedBatchResponse,
 } from '../fcm-send-skip'
+import { errorHistoryPush } from '../error-history'
 
 function getFcmErrorCode(error: { code?: string; message?: string } | null): string {
   if (!error?.code) return 'FCM_DELIVERY_FAILED'
@@ -79,6 +80,7 @@ export class SmsQueueProcessor {
   async handleSendSms(job: Job<any>) {
     // this.logger.debug(`Processing send-sms job ${job.id}`)
     const { deviceId, fcmMessages, smsBatchId } = job.data
+    let pushHandedOff = false
 
     const device = await this.deviceModel
       .findById(deviceId)
@@ -108,6 +110,9 @@ export class SmsQueueProcessor {
       const response = skipped
         ? skippedBatchResponse(fcmMessages.length)
         : await firebaseAdmin.messaging().sendEach(fcmMessages)
+      // The push is done. Anything that throws from here on is a persistence
+      // problem, and must not mark handed-off messages as failed a second time.
+      pushHandedOff = true
 
       // this.logger.debug(
       //   `SMS Job ${job.id}( smsBatchId: ${smsBatchId}) completed, success: ${response.successCount}, failures: ${response.failureCount}`,
@@ -143,11 +148,24 @@ export class SmsQueueProcessor {
       // Mark individual SMS records as dispatched when FCM push succeeded
       const now = new Date()
       const dispatchedSmsIds: string[] = []
+      const dispatchedUpdates: Array<{
+        smsId: string
+        fcmMessageId?: string
+      }> = []
       for (let i = 0; i < response.responses.length; i++) {
         if (response.responses[i].success) {
           try {
             const smsData = JSON.parse(fcmMessages[i].data.smsData)
+            const messageId = response.responses[i].messageId
             dispatchedSmsIds.push(String(smsData.smsId))
+            dispatchedUpdates.push({
+              smsId: String(smsData.smsId),
+              // The skip path fakes a response, so its sentinel is not an id
+              ...(messageId &&
+                messageId !== FCM_SEND_SKIPPED_ERROR_CODE && {
+                  fcmMessageId: messageId,
+                }),
+            })
           } catch (parseError) {
             this.logger.error(
               `Failed to mark SMS as dispatched for FCM message index ${i}`,
@@ -157,34 +175,52 @@ export class SmsQueueProcessor {
         }
       }
 
-      if (failedUpdates.length > 0) {
-        const failedAt = new Date()
-        for (const failedUpdate of failedUpdates) {
-          await this.smsModel.updateOne(
-            { _id: failedUpdate.smsId as any },
-            {
+      // One write per message: each row carries its own FCM message id and
+      // its own failure entry
+      const failedAt = new Date()
+      const writes = [
+        ...failedUpdates.map((failedUpdate) => ({
+          updateOne: {
+            filter: { _id: failedUpdate.smsId as any },
+            update: {
               $set: {
                 status: 'failed',
                 failedAt,
                 errorCode: failedUpdate.errorCode,
                 errorMessage: failedUpdate.errorMessage,
               },
-            },
-          )
-        }
-      }
-
-      if (dispatchedSmsIds.length > 0) {
-        await this.smsModel.updateMany(
-          { _id: { $in: dispatchedSmsIds } as any },
-          {
-            $set: {
-              status: 'dispatched',
-              dispatchedAt: now,
-              ...(skipped && { errorCode: FCM_SEND_SKIPPED_ERROR_CODE }),
+              $inc: { dispatchAttempts: 1 },
+              ...(errorHistoryPush(
+                {
+                  code: failedUpdate.errorCode,
+                  message: failedUpdate.errorMessage,
+                  source: 'fcm',
+                },
+                failedAt,
+              ) ?? {}),
             },
           },
-        )
+        })),
+        ...dispatchedUpdates.map((dispatchedUpdate) => ({
+          updateOne: {
+            filter: { _id: dispatchedUpdate.smsId as any },
+            update: {
+              $set: {
+                status: 'dispatched',
+                dispatchedAt: now,
+                ...(skipped && { errorCode: FCM_SEND_SKIPPED_ERROR_CODE }),
+                ...(dispatchedUpdate.fcmMessageId && {
+                  'metadata.fcmMessageId': dispatchedUpdate.fcmMessageId,
+                }),
+              },
+              $inc: { dispatchAttempts: 1 },
+            },
+          },
+        })),
+      ]
+
+      if (writes.length > 0) {
+        await this.smsModel.bulkWrite(writes as any, { ordered: false })
       }
 
       if (device?.user && failedSmsIds.length > 0) {
@@ -245,6 +281,11 @@ export class SmsQueueProcessor {
     } catch (error) {
       this.logger.error(`Failed to process SMS job ${job.id}`, error)
 
+      // Only the handoff itself gets the blanket failure. After it, the
+      // per-message outcome is already written and a storage error here would
+      // otherwise overwrite dispatched rows and double-count attempts.
+      if (pushHandedOff) throw error
+
       // Mark all individual SMS in this batch of FCM messages as failed
       const failedSmsIds: string[] = []
       for (const fcmMessage of fcmMessages) {
@@ -261,18 +302,25 @@ export class SmsQueueProcessor {
 
       if (failedSmsIds.length > 0) {
         const failedAt = new Date()
+        const errorCode =
+          (error as any)?.code != null
+            ? getFcmErrorCode(error as any)
+            : 'FCM_SEND_ERROR'
+        const errorMessage = getFcmErrorMessage(error as any)
         await this.smsModel.updateMany(
           { _id: { $in: failedSmsIds } as any },
           {
             $set: {
               status: 'failed',
               failedAt,
-              errorCode:
-                (error as any)?.code != null
-                  ? getFcmErrorCode(error as any)
-                  : 'FCM_SEND_ERROR',
-              errorMessage: getFcmErrorMessage(error as any),
+              errorCode,
+              errorMessage,
             },
+            $inc: { dispatchAttempts: 1 },
+            ...(errorHistoryPush(
+              { code: errorCode, message: errorMessage, source: 'fcm' },
+              failedAt,
+            ) ?? {}),
           },
         )
       }
