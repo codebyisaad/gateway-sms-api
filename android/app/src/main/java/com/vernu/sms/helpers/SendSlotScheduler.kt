@@ -35,7 +35,12 @@ object SendSlotScheduler {
 
     private val lock = Any()
 
-    fun reserve(context: Context, gapMs: Long, keys: Keys = QUEUE): Long = synchronized(lock) {
+    fun reserve(context: Context, gapMs: Long, keys: Keys = QUEUE): Long =
+        reserveIfWithin(context, gapMs, keys, Long.MAX_VALUE) ?: 0L
+
+    // Takes the next slot only when its wait fits; otherwise nothing is
+    // reserved and the caller comes back later.
+    fun reserveIfWithin(context: Context, gapMs: Long, keys: Keys, maxWaitMs: Long): Long? = synchronized(lock) {
         val now = System.currentTimeMillis()
         val slot = next(
             SharedPreferenceHelper.getSharedPreferenceLong(context, keys.slotKey, 0L),
@@ -43,6 +48,7 @@ object SendSlotScheduler {
             now,
             gapMs,
         )
+        if (slot.initialDelayMs > maxWaitMs) return null
         SharedPreferenceHelper.setSharedPreferenceLong(context, keys.slotKey, slot.nextSlotMs)
         SharedPreferenceHelper.setSharedPreferenceLong(context, keys.lastReservedKey, now)
         slot.initialDelayMs

@@ -57,6 +57,15 @@ class SendSlotSchedulerTest {
     }
 
     @Test
+    fun aWaitBeyondTheCapIsNotReserved() {
+        // The pure math behind reserveIfWithin: a slot 5 minutes out must not
+        // be taken by a job that may only wait 2 minutes
+        val slot = SendSlotScheduler.next(now + 300_000, now, now, 5_000)
+        assertEquals(300_000, slot.initialDelayMs)
+        assertEquals(true, slot.initialDelayMs > 120_000)
+    }
+
+    @Test
     fun slotTooFarAheadResets() {
         val slot = SendSlotScheduler.next(now + SendSlotScheduler.MAX_SLOT_AHEAD_MS + 1, now, now, 5_000)
         assertEquals(0, slot.initialDelayMs)
