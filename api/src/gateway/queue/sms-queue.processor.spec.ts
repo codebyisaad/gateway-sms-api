@@ -58,6 +58,7 @@ describe('SmsQueueProcessor.handleSendSms', () => {
   }
   const mockSmsModel = {
     updateMany: jest.fn(),
+    bulkWrite: jest.fn(),
     find: jest.fn(),
   }
   const mockSmsBatchModel = {
@@ -117,9 +118,54 @@ describe('SmsQueueProcessor.handleSendSms', () => {
     await processor.handleSendSms(job)
 
     expect(sendEach).toHaveBeenCalledWith(fcmMessages)
-    expect(mockSmsModel.updateMany).toHaveBeenCalledWith(
-      { _id: { $in: ['sms-1'] } },
-      { $set: { status: 'dispatched', dispatchedAt: expect.any(Date) } },
+    const [writes] = mockSmsModel.bulkWrite.mock.calls[0]
+    expect(writes).toEqual([
+      {
+        updateOne: {
+          filter: { _id: 'sms-1' },
+          update: {
+            $set: {
+              status: 'dispatched',
+              dispatchedAt: expect.any(Date),
+              'metadata.fcmMessageId': 'fcm-1',
+            },
+            $inc: { dispatchAttempts: 1 },
+          },
+        },
+      },
+    ])
+  })
+
+  it('records the failure and its history when the push is rejected', async () => {
+    jest.spyOn(firebaseAdmin.messaging(), 'sendEach').mockResolvedValue({
+      successCount: 0,
+      failureCount: 1,
+      responses: [
+        {
+          success: false,
+          error: { code: 'messaging/registration-token-not-registered' },
+        },
+      ],
+    } as any)
+    mockSmsModel.find.mockResolvedValue([])
+
+    await processor.handleSendSms(job)
+
+    const [writes] = mockSmsModel.bulkWrite.mock.calls[0]
+    expect(writes[0].updateOne.update.$set).toEqual(
+      expect.objectContaining({
+        status: 'failed',
+        errorCode: 'FCM_TOKEN_NOT_REGISTERED',
+      }),
+    )
+    expect(writes[0].updateOne.update.$inc).toEqual({ dispatchAttempts: 1 })
+    const history = writes[0].updateOne.update.$push['metadata.errorHistory']
+    expect(history.$slice).toBe(-5)
+    expect(history.$each[0]).toEqual(
+      expect.objectContaining({
+        code: 'FCM_TOKEN_NOT_REGISTERED',
+        source: 'fcm',
+      }),
     )
   })
 
@@ -131,16 +177,13 @@ describe('SmsQueueProcessor.handleSendSms', () => {
 
     expect(sendEach).not.toHaveBeenCalled()
     expect(response.successCount).toBe(1)
-    expect(mockSmsModel.updateMany).toHaveBeenCalledWith(
-      { _id: { $in: ['sms-1'] } },
-      {
-        $set: {
-          status: 'dispatched',
-          dispatchedAt: expect.any(Date),
-          errorCode: 'FCM_SEND_SKIPPED',
-        },
-      },
-    )
+    const [writes] = mockSmsModel.bulkWrite.mock.calls[0]
+    // The skip path fakes a message id, so it must not be stored as one
+    expect(writes[0].updateOne.update.$set).toEqual({
+      status: 'dispatched',
+      dispatchedAt: expect.any(Date),
+      errorCode: 'FCM_SEND_SKIPPED',
+    })
     expect(mockSmsBatchModel.findByIdAndUpdate).toHaveBeenCalledWith(
       smsBatchId,
       { $set: { status: 'completed' } },

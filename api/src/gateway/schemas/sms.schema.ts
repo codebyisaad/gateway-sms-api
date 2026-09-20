@@ -54,6 +54,17 @@ export class SMS {
   @Prop({ type: Date })
   dispatchedAt: Date
 
+  // How many times the message has been handed to the push service
+  @Prop({ type: Number })
+  dispatchAttempts?: number
+
+  // Reported by the phone: when it got the push, and when it called the radio
+  @Prop({ type: Date })
+  pushReceivedAt?: Date
+
+  @Prop({ type: Date })
+  sendAttemptedAt?: Date
+
   @Prop({ type: Date })
   sentAt: Date
 
