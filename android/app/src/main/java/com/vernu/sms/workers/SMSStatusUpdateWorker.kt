@@ -6,6 +6,7 @@ import androidx.work.*
 import com.google.gson.Gson
 import com.vernu.sms.ApiManager
 import com.vernu.sms.dtos.SMSDTO
+import com.vernu.sms.helpers.DeviceLog
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
@@ -62,13 +63,16 @@ class SMSStatusUpdateWorker(context: Context, workerParams: WorkerParameters) : 
             val response = ApiManager.getApiService().updateSMSStatus(deviceId, apiKey, smsDTO).execute()
             if (response.isSuccessful) {
                 Log.d(TAG, "SMS status updated successfully - ID: ${smsDTO.smsId}, Status: ${smsDTO.status}")
+                DeviceLog.log(applicationContext, "status_uploaded", "${smsDTO.status}, attempt ${smsDTO.reportAttempt}", smsDTO.smsId)
                 Result.success()
             } else {
                 Log.e(TAG, "Failed to update SMS status. Response code: ${response.code()}")
+                DeviceLog.log(applicationContext, "status_upload_retry", "http ${response.code()}, attempt ${smsDTO.reportAttempt}", smsDTO.smsId)
                 retryOrFail(response.code())
             }
         } catch (e: IOException) {
             Log.e(TAG, "API call failed: ${e.message}")
+            DeviceLog.log(applicationContext, "status_upload_retry", "network, attempt ${smsDTO.reportAttempt}", smsDTO.smsId)
             retryOrFail(null)
         }
     }

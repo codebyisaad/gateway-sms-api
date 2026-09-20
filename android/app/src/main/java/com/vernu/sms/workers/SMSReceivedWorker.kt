@@ -6,6 +6,7 @@ import androidx.work.*
 import com.google.gson.Gson
 import com.vernu.sms.ApiManager
 import com.vernu.sms.dtos.SMSDTO
+import com.vernu.sms.helpers.DeviceLog
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
@@ -67,9 +68,11 @@ class SMSReceivedWorker(context: Context, workerParams: WorkerParameters) : Work
             val response = ApiManager.getApiService().sendReceivedSMS(deviceId, apiKey, smsDTO).execute()
             if (response.isSuccessful) {
                 Log.d(TAG, "Received SMS sent to server successfully")
+                DeviceLog.log(applicationContext, "sms_forwarded", "from ${smsDTO.sender}")
                 Result.success()
             } else {
                 Log.e(TAG, "Failed to send received SMS to server. Response code: ${response.code()}")
+                DeviceLog.log(applicationContext, "sms_forward_retry", "http ${response.code()}, attempt ${runAttemptCount + 1}")
                 retryOrFail(response.code())
             }
         } catch (e: IOException) {

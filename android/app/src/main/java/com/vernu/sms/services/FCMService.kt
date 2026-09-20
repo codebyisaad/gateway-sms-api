@@ -19,6 +19,7 @@ import com.vernu.sms.TextbeeUtils
 import com.vernu.sms.activities.MainActivity
 import com.vernu.sms.dtos.RegisterDeviceInputDTO
 import com.vernu.sms.dtos.RegisterDeviceResponseDTO
+import com.vernu.sms.helpers.DeviceLog
 import com.vernu.sms.helpers.HeartbeatHelper
 import com.vernu.sms.helpers.HeartbeatManager
 import com.vernu.sms.helpers.SharedPreferenceHelper
@@ -41,6 +42,7 @@ class FCMService : FirebaseMessagingService() {
         try {
             val messageType = remoteMessage.data["type"]
             if (messageType == "heartbeat_check") {
+                DeviceLog.log(this, "push_received", "heartbeat check")
                 handleHeartbeatCheck()
                 return
             }
@@ -92,8 +94,10 @@ class FCMService : FirebaseMessagingService() {
         }
         if (smsPayload.smsId.isNullOrEmpty() || smsPayload.message == null) {
             Log.e(TAG, "SMS payload is missing its id or message")
+            DeviceLog.log(this, "push_invalid", "missing id or message")
             return
         }
+        DeviceLog.log(this, "push_received", "${recipients.size} recipient(s)", smsPayload.smsId)
 
         for (recipient in recipients) {
             SmsSendWorker.enqueue(
@@ -107,6 +111,7 @@ class FCMService : FirebaseMessagingService() {
     }
 
     override fun onNewToken(token: String) {
+        DeviceLog.log(this, "token_refreshed")
         sendRegistrationToServer(token)
     }
 
