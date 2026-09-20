@@ -881,6 +881,7 @@ describe('GatewayService', () => {
       expect(mockSmsModel.create.mock.calls[0][0].metadata).toEqual({
         appVersionCode: 18,
         appVersionName: '2.8.0',
+        appVersionAt: expect.any(Date),
       })
     })
 
@@ -1356,6 +1357,7 @@ describe('GatewayService', () => {
         appVersionCode: 18,
         appVersionName: '2.8.0',
         client: 'textbee-android/2.8.0',
+        appVersionAt: expect.any(Date),
       })
     })
 
@@ -1869,6 +1871,7 @@ describe('GatewayService', () => {
         const update = mockSmsModel.findByIdAndUpdate.mock.calls[0][1]
         expect(update.$set['metadata.appVersionCode']).toBe(17)
         expect(update.$set['metadata.appVersionName']).toBe('2.7.0')
+        expect(update.$set['metadata.appVersionAt']).toBeInstanceOf(Date)
         expect(update.$set['metadata.client']).toBeUndefined()
       })
     })
