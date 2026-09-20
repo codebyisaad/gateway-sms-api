@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -13,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material3.*
@@ -53,7 +55,14 @@ fun PermissionsScreen(
                 rationale = "Required to detect SIM cards for multi-SIM support",
                 icon = Icons.Default.PhoneAndroid
             )
-        )
+        ) + if (Build.VERSION.SDK_INT >= 33) listOf(
+            PermissionItem(
+                permission = "android.permission.POST_NOTIFICATIONS",
+                label = "Notifications",
+                rationale = "Lets textbee show that it is running and sending in the background",
+                icon = Icons.Default.Notifications
+            )
+        ) else emptyList()
     }
 
     var grantedMap by remember {
