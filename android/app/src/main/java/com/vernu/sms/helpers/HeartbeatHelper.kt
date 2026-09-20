@@ -6,6 +6,7 @@ import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.os.BatteryManager
 import android.os.Build
+import android.os.PowerManager
 import android.os.StatFs
 import android.os.SystemClock
 import android.util.Log
@@ -111,6 +112,20 @@ object HeartbeatHelper {
                 context, AppConstants.SHARED_PREFS_SMS_SEND_DELAY_SECONDS_KEY,
                 AppConstants.DEFAULT_SMS_SEND_DELAY_SECONDS
             )
+
+            // What the OS is doing to the app in the background
+            try {
+                val powerManager =
+                    context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+                if (powerManager != null) {
+                    heartbeatInput.isIgnoringBatteryOptimizations =
+                        powerManager.isIgnoringBatteryOptimizations(context.packageName)
+                    heartbeatInput.isDeviceIdleMode = powerManager.isDeviceIdleMode
+                    heartbeatInput.isPowerSaveMode = powerManager.isPowerSaveMode
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "Could not read power state: ${e.message}")
+            }
 
             // SIM info
             heartbeatInput.simInfo = SimInfoCollectionDTO().apply {

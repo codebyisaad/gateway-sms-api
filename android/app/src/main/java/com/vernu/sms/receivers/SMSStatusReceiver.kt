@@ -17,6 +17,8 @@ class SMSStatusReceiver : BroadcastReceiver() {
         private const val TAG = "SMSStatusReceiver"
         const val SMS_SENT = "SMS_SENT"
         const val SMS_DELIVERED = "SMS_DELIVERED"
+        const val EXTRA_PUSH_RECEIVED_AT = "push_received_at"
+        const val EXTRA_SEND_ATTEMPTED_AT = "send_attempted_at"
 
         private fun getResultCodeName(resultCode: Int): String? {
             for (clazz in arrayOf<Class<*>>(SmsManager::class.java, Activity::class.java)) {
@@ -43,6 +45,9 @@ class SMSStatusReceiver : BroadcastReceiver() {
         val smsDTO = SMSDTO().apply {
             this.smsId = smsId
             this.smsBatchId = smsBatchId
+            // Carried through the pending intent from the send worker
+            pushReceivedAtInMillis = intent.getLongExtra(EXTRA_PUSH_RECEIVED_AT, 0)
+            sendAttemptedAtInMillis = intent.getLongExtra(EXTRA_SEND_ATTEMPTED_AT, 0)
         }
 
         when (intent.action) {
