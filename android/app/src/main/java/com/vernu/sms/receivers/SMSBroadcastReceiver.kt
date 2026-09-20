@@ -7,6 +7,7 @@ import android.provider.Telephony
 import android.util.Log
 import com.vernu.sms.AppConstants
 import com.vernu.sms.dtos.SMSDTO
+import com.vernu.sms.helpers.DeviceLog
 import com.vernu.sms.helpers.SMSFilterHelper
 import com.vernu.sms.helpers.SharedPreferenceHelper
 import com.vernu.sms.workers.SMSReceivedWorker
@@ -58,6 +59,7 @@ class SMSBroadcastReceiver : BroadcastReceiver() {
         val sender = dto.sender
         if (sender != null && !SMSFilterHelper.shouldProcessSMS(sender, dto.message, context)) {
             Log.d(TAG, "SMS from $sender filtered out by filter rules")
+            DeviceLog.log(context, "sms_filtered", "from $sender")
             return
         }
 
@@ -74,6 +76,7 @@ class SMSBroadcastReceiver : BroadcastReceiver() {
         processedFingerprints[fingerprint] = currentTime
         cleanupCache(currentTime)
 
+        DeviceLog.log(context, "sms_received", "from ${dto.sender}")
         SMSReceivedWorker.enqueueWork(context, deviceId, apiKey, dto)
     }
 

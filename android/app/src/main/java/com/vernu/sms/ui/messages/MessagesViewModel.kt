@@ -24,6 +24,8 @@ data class MessagesState(
     val total: Int = 0
 )
 
+const val EVENTS_FILTER = "events"
+
 class MessagesViewModel(app: Application) : AndroidViewModel(app) {
 
     private val context get() = getApplication<Application>().applicationContext
@@ -37,19 +39,20 @@ class MessagesViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setFilter(filter: String) {
         _state.update { it.copy(filter = filter, currentPage = 1) }
-        fetchMessages(reset = true)
+        if (filter != EVENTS_FILTER) fetchMessages(reset = true)
     }
 
-    fun refresh() = fetchMessages(reset = true)
+    fun refresh() {
+        if (_state.value.filter != EVENTS_FILTER) fetchMessages(reset = true)
+    }
 
     fun loadMore() {
         val s = _state.value
         if (s.isLoadingMore || s.currentPage >= s.totalPages) return
-        _state.update { it.copy(currentPage = it.currentPage + 1) }
-        fetchMessages(reset = false)
+        fetchMessages(reset = false, page = s.currentPage + 1)
     }
 
-    private fun fetchMessages(reset: Boolean) {
+    private fun fetchMessages(reset: Boolean, page: Int = 1) {
         val apiKey = SharedPreferenceHelper.getSharedPreferenceString(
             context, AppConstants.SHARED_PREFS_API_KEY_KEY, ""
         ) ?: ""
@@ -61,7 +64,6 @@ class MessagesViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
 
-        val page = if (reset) 1 else _state.value.currentPage
         val filter = _state.value.filter
 
         viewModelScope.launch {

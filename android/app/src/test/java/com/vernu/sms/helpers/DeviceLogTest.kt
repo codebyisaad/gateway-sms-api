@@ -1,0 +1,31 @@
+package com.vernu.sms.helpers
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+
+class DeviceLogTest {
+    @Test
+    fun masksPhoneNumbersButKeepsTheLastFourDigits() {
+        assertEquals("sent to +…0142", DeviceLog.redact("sent to +15550100142"))
+        assertEquals("code 4 attempt 3", DeviceLog.redact("code 4 attempt 3"))
+        assertEquals("id …7890 and …4321", DeviceLog.redact("id 1234567890 and 09876554321"))
+    }
+
+    @Test
+    fun keepsOnlyTheNewestEntries() {
+        val many = (1..DeviceLog.MAX_ENTRIES + 20).map { LogEntry(it.toLong(), "e", "", null) }
+        val kept = DeviceLog.trim(many)
+        assertEquals(DeviceLog.MAX_ENTRIES, kept.size)
+        assertEquals(21L, kept.first().timeMs)
+    }
+
+    @Test
+    fun linesRoundTripAndTabsAreFlattened() {
+        val entry = LogEntry(1700000000000L, "send_attempted", "delay 5s\tsim 1", "abc123")
+        val parsed = DeviceLog.parseLine(DeviceLog.formatLine(entry))
+        assertEquals(entry.copy(detail = "delay 5s sim 1"), parsed)
+        assertNull(DeviceLog.parseLine("garbage"))
+        assertEquals(null, DeviceLog.parseLine("1\tevent\t\t")?.smsId)
+    }
+}

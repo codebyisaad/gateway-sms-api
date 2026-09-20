@@ -61,6 +61,7 @@ object RecoveryPoll {
                 }
             }
             Log.d(TAG, "Recovery poll ($reason): ${messages.size} messages, $enqueued sends enqueued")
+            DeviceLog.log(context, "recovery_poll", "$reason: ${messages.size} message(s)")
             enqueued
         } catch (e: Exception) {
             TextbeeUtils.logException(e, "Recovery poll failed")

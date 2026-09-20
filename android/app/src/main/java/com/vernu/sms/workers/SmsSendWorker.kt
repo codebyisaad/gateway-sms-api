@@ -13,6 +13,7 @@ import com.vernu.sms.AppConstants
 import com.vernu.sms.R
 import com.vernu.sms.TextbeeUtils
 import com.vernu.sms.database.SmsDedupeStore
+import com.vernu.sms.helpers.DeviceLog
 import com.vernu.sms.helpers.DeviceConfig
 import com.vernu.sms.helpers.SMSHelper
 import com.vernu.sms.helpers.SendSlotScheduler
@@ -47,6 +48,7 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
                 val store = SmsDedupeStore.get(context)
                 if (store.wasSent(smsId, phone)) {
                     Log.d(TAG, "SMS already sent, skipping - ID: $smsId")
+                    DeviceLog.log(context, "send_skipped", "already sent to $phone", smsId)
                     return
                 }
                 store.markSeen(smsId, phone)
@@ -91,6 +93,7 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
             } else {
                 builder.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             }
+            DeviceLog.log(context, "send_queued", "to $phone, starts in ${initialDelayMs / 1000}s", smsId)
 
             WorkManager.getInstance(context).enqueueUniqueWork(
                 uniqueName,
@@ -166,12 +169,13 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
         // pushReceivedAt is time this message waited in the worker queue
         val timing = SendTiming(pushReceivedAt, System.currentTimeMillis())
 
+        DeviceLog.log(context, "send_attempted", "to $phone" + (resolvedSim?.let { ", sim $it" } ?: ""), smsId)
         val sent = if (resolvedSim != null) {
             SMSHelper.sendSMSFromSpecificSim(phone, message, resolvedSim, smsId, smsBatchId ?: "", context, timing)
         } else {
             SMSHelper.sendSMS(phone, message, smsId, smsBatchId ?: "", context, timing)
         }
-        if (sent) store.markSent(smsId, phone)
+        if (sent) store.markSent(smsId, phone) else DeviceLog.log(context, "send_failed", "radio call refused", smsId)
 
         if (legacy) {
             val delaySeconds = configuredDelaySeconds(context)

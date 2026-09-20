@@ -8,6 +8,7 @@ import android.telephony.SmsManager
 import android.util.Log
 import com.vernu.sms.AppConstants
 import com.vernu.sms.dtos.SMSDTO
+import com.vernu.sms.helpers.DeviceLog
 import com.vernu.sms.helpers.SharedPreferenceHelper
 import com.vernu.sms.workers.SMSStatusUpdateWorker
 import java.lang.reflect.Modifier
@@ -128,6 +129,7 @@ class SMSStatusReceiver : BroadcastReceiver() {
     }
 
     private fun updateSMSStatus(context: Context, smsDTO: SMSDTO) {
+        DeviceLog.log(context, "status_${smsDTO.status?.lowercase() ?: "unknown"}", smsDTO.errorMessage ?: "", smsDTO.smsId)
         val deviceId = SharedPreferenceHelper.getSharedPreferenceString(
             context, AppConstants.SHARED_PREFS_DEVICE_ID_KEY, ""
         ) ?: ""
