@@ -47,4 +47,5 @@ public class AppConstants {
     public static final String SHARED_PREFS_LAST_SEND_RESERVED_AT_MS_KEY = "LAST_SEND_RESERVED_AT_MS";
     public static final String SHARED_PREFS_NEXT_SEND_EXEC_SLOT_MS_KEY = "NEXT_SEND_EXEC_SLOT_MS";
     public static final String SHARED_PREFS_LAST_SEND_EXEC_RESERVED_AT_MS_KEY = "LAST_SEND_EXEC_RESERVED_AT_MS";
+    public static final String SHARED_PREFS_LAST_RECOVERY_POLL_MS_KEY = "LAST_RECOVERY_POLL_MS";
 }

@@ -122,3 +122,6 @@ SMSSchema.index({ user: 1, createdAt: -1, type: 1 })
 // other index can supply it. Build on Atlas before deploying; autoIndex would
 // otherwise build it at boot.
 SMSSchema.index({ user: 1, createdAt: -1, _id: -1 })
+// Serves the per-device recovery poll and its count on every heartbeat.
+// Build on Atlas before deploying.
+SMSSchema.index({ device: 1, status: 1, requestedAt: -1 })
