@@ -7,8 +7,11 @@ import org.junit.Test
 class DeviceLogTest {
     @Test
     fun masksPhoneNumbersButKeepsTheLastFourDigits() {
-        assertEquals("sent to +…0142", DeviceLog.redact("sent to +15550100142"))
+        assertEquals("sent to …0142", DeviceLog.redact("sent to +15550100142"))
+        assertEquals("from …0142", DeviceLog.redact("from +1 (555) 010-0142"))
+        assertEquals("to …0142", DeviceLog.redact("to 555-010-0142"))
         assertEquals("code 4 attempt 3", DeviceLog.redact("code 4 attempt 3"))
+        assertEquals("version 2.9.0 (20)", DeviceLog.redact("version 2.9.0 (20)"))
         assertEquals("id …7890 and …4321", DeviceLog.redact("id 1234567890 and 09876554321"))
     }
 

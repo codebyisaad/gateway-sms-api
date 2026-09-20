@@ -58,6 +58,17 @@ class DeliveryHealthRowsTest {
     }
 
     @Test
+    fun stickyOnWithoutReceivePermissionIsNotReportedAsRunning() {
+        val rows = DeliveryHealthRows.build(inputs(allGood.copy(hasReceiveSmsPermission = false)))
+        assertEquals(HealthStatus.AMBER, rows.first { it.id == "sticky" }.status)
+    }
+
+    @Test
+    fun futureHeartbeatIsNotGreen() {
+        assertEquals(HealthStatus.AMBER, DeliveryHealthRows.checkInRow(now + 60_000, now, true).status)
+    }
+
+    @Test
     fun knownPhoneMakersGetTips() {
         val rows = DeliveryHealthRows.build(inputs().copy(manufacturer = "samsung"))
         val oem = rows.first { it.id == "oem" }

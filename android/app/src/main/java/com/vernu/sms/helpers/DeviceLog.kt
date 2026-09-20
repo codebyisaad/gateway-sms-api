@@ -27,10 +27,14 @@ object DeviceLog {
     private var loaded = false
     private var appendsSinceRewrite = 0
 
-    private val digitRun = Regex("\\d{7,}")
+    // Anything that looks like a phone number, formatted or not
+    private val phoneLike = Regex("\\+?\\d[\\d\\s().-]{5,}\\d")
 
     fun redact(text: String): String =
-        digitRun.replace(text) { m -> "…" + m.value.takeLast(4) }
+        phoneLike.replace(text) { m ->
+            val digits = m.value.filter { it.isDigit() }
+            if (digits.length >= 7) "…" + digits.takeLast(4) else m.value
+        }
 
     fun trim(list: List<LogEntry>): List<LogEntry> =
         if (list.size <= MAX_ENTRIES) list else list.takeLast(MAX_ENTRIES)

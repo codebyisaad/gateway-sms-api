@@ -8,6 +8,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.vernu.sms.AppConstants
 import com.vernu.sms.BuildConfig
 import com.vernu.sms.R
@@ -40,6 +41,12 @@ object UpdateNotifier {
                 NotificationChannel(CHANNEL_ID, "App updates", NotificationManager.IMPORTANCE_LOW)
             )
         }
+        // A blocked channel shows nothing; do not record the release as notified
+        val blocked = !NotificationManagerCompat.from(context).areNotificationsEnabled() ||
+            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                manager.getNotificationChannel(CHANNEL_ID)?.importance == NotificationManager.IMPORTANCE_NONE)
+        if (blocked) return
+
         val open = PendingIntent.getActivity(
             context, 0, Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl())),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE

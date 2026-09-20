@@ -118,7 +118,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
                     SharedPreferenceHelper.setSharedPreferenceBoolean(
                         context, AppConstants.SHARED_PREFS_GATEWAY_ENABLED_KEY, enabled
                     )
-                    _state.update { it.copy(isGatewayEnabled = enabled) }
+                    _state.update { it.copy(isGatewayEnabled = enabled, healthIssueCount = DeliveryHealthViewModel.issueCount(context)) }
                     if (enabled) {
                         TextbeeUtils.startStickyNotificationService(context)
                         com.vernu.sms.helpers.HeartbeatManager.scheduleHeartbeat(context)

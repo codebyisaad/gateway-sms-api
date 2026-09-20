@@ -100,7 +100,7 @@ class ComposeViewModel(app: Application) : AndroidViewModel(app) {
                 }
             } catch (e: Exception) {
                 _state.update {
-                    it.copy(isSending = false, sendError = "Network error. Please try again.")
+                    it.copy(isSending = false, sendError = "Network error. Please try again.", upgradeUrl = null)
                 }
             }
         }

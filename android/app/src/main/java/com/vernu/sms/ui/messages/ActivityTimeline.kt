@@ -11,12 +11,18 @@ data class TimelineStep(val label: String, val timeMs: Long, val detail: String 
 // One ordered story per message: what the server recorded plus what this
 // phone logged for the same message id.
 object ActivityTimeline {
+    // Accepts 2026-09-20T12:34:56Z, with or without fractional seconds
     fun parseIso(iso: String?): Long? {
         if (iso == null) return null
         return try {
+            val trimmed = iso.trim().removeSuffix("Z")
+            val dot = trimmed.indexOf('.')
+            val base = if (dot >= 0) trimmed.substring(0, dot) else trimmed
+            val fraction = if (dot >= 0) trimmed.substring(dot + 1).filter { it.isDigit() } else ""
+            val millis = (fraction + "000").take(3)
             val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US)
             sdf.timeZone = TimeZone.getTimeZone("UTC")
-            (sdf.parse(iso.take(23).padEnd(23, '0')) ?: return null).time
+            (sdf.parse("$base.$millis") ?: return null).time
         } catch (e: Exception) {
             null
         }

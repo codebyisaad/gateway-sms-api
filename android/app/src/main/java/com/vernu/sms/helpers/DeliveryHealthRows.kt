@@ -63,7 +63,11 @@ object DeliveryHealthRows {
             null -> HealthRow("battery", "Battery usage", "Could not read", HealthStatus.AMBER, countsAsIssue = false)
         }
 
-        rows += if (s.stickyNotificationEnabled) {
+        rows += if (s.stickyNotificationEnabled && !s.hasReceiveSmsPermission) {
+            HealthRow("sticky", "Sticky notification",
+                "On, but it cannot start until the Receive SMS permission is granted.",
+                HealthStatus.AMBER, countsAsIssue = false)
+        } else if (s.stickyNotificationEnabled) {
             HealthRow("sticky", "Sticky notification", "On. A permanent notification tells Android to keep textbee running.", HealthStatus.GREEN)
         } else {
             HealthRow("sticky", "Sticky notification",
@@ -116,6 +120,11 @@ object DeliveryHealthRows {
             return HealthRow("checkin", "Last check-in", "Never. The phone has not reported to textbee yet.", HealthStatus.RED)
         }
         val age = nowMs - lastHeartbeatMs
+        if (age < 0) {
+            return HealthRow("checkin", "Last check-in",
+                "The last check-in is in the future, so the phone clock changed. The next check-in clears this.",
+                HealthStatus.AMBER, countsAsIssue = false)
+        }
         val ago = "Checked in ${formatDuration(age)} ago"
         return when {
             age < 45 * MINUTE -> HealthRow("checkin", "Last check-in", ago, HealthStatus.GREEN)

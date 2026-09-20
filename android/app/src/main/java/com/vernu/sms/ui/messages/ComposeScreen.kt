@@ -2,6 +2,7 @@ package com.vernu.sms.ui.messages
 
 import androidx.compose.ui.platform.LocalContext
 import android.net.Uri
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -47,7 +48,11 @@ fun ComposeScreen(
                 duration = if (upgradeUrl != null) SnackbarDuration.Long else SnackbarDuration.Short
             )
             if (result == SnackbarResult.ActionPerformed && upgradeUrl != null) {
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(upgradeUrl)))
+                try {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(upgradeUrl)))
+                } catch (e: ActivityNotFoundException) {
+                    snackbarHostState.showSnackbar("No browser found. Open textbee.dev/pricing on another device.")
+                }
             }
             viewModel.clearError()
         }
