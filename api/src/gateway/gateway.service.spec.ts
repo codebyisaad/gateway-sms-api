@@ -870,6 +870,20 @@ describe('GatewayService', () => {
       expect(result).toEqual(mockFcmResponse)
     })
 
+    it('stores the app version the device was on when queued', async () => {
+      mockDeviceModel.findById.mockResolvedValue({
+        ...mockDevice,
+        appVersionInfo: { versionCode: 18, versionName: '2.8.0' },
+      })
+
+      await service.sendSMS(mockDeviceId, mockSmsInput)
+
+      expect(mockSmsModel.create.mock.calls[0][0].metadata).toEqual({
+        appVersionCode: 18,
+        appVersionName: '2.8.0',
+      })
+    })
+
     it('should throw error if device is not enabled', async () => {
       mockDeviceModel.findById.mockResolvedValue({
         ...mockDevice,

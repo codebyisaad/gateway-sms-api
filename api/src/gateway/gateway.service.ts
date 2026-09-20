@@ -561,6 +561,8 @@ export class GatewayService {
         ...(smsData.simSubscriptionId !== undefined && {
           simSubscriptionId: smsData.simSubscriptionId,
         }),
+        // The build the device was on when queued; the status report replaces it
+        metadata: appVersionMetadata(device),
       })
       const updatedSMSData = {
         smsId: sms._id,
@@ -787,6 +789,8 @@ export class GatewayService {
       scheduledTime?: number
       smsId: Types.ObjectId
     }> = []
+    // The build the device was on when queued; the status report replaces it
+    const queuedAppVersion = appVersionMetadata(device)
     const smsDocumentsToInsert: Array<Record<string, any>> = []
     const smsToFcmMetadata: Array<{
       recipient: string
@@ -830,6 +834,7 @@ export class GatewayService {
           ...(smsData.simSubscriptionId !== undefined && {
             simSubscriptionId: smsData.simSubscriptionId,
           }),
+          metadata: queuedAppVersion,
         })
         smsToFcmMetadata.push({
           recipient,
