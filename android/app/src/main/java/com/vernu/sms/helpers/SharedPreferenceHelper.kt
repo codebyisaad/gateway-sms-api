@@ -16,6 +16,11 @@ object SharedPreferenceHelper {
     }
 
     @JvmStatic
+    fun setSharedPreferenceLong(context: Context, key: String, value: Long) {
+        context.getSharedPreferences(PREF_FILE, 0).edit().putLong(key, value).apply()
+    }
+
+    @JvmStatic
     fun setSharedPreferenceBoolean(context: Context, key: String, value: Boolean) {
         context.getSharedPreferences(PREF_FILE, 0).edit().putBoolean(key, value).apply()
     }
@@ -28,6 +33,11 @@ object SharedPreferenceHelper {
     @JvmStatic
     fun getSharedPreferenceInt(context: Context, key: String, defValue: Int): Int {
         return context.getSharedPreferences(PREF_FILE, 0).getInt(key, defValue)
+    }
+
+    @JvmStatic
+    fun getSharedPreferenceLong(context: Context, key: String, defValue: Long): Long {
+        return context.getSharedPreferences(PREF_FILE, 0).getLong(key, defValue)
     }
 
     @JvmStatic

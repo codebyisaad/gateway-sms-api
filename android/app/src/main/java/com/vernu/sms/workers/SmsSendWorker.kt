@@ -1,18 +1,31 @@
 package com.vernu.sms.workers
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
+import android.os.Build
 import android.util.Log
+import androidx.concurrent.futures.CallbackToFutureAdapter
+import androidx.core.app.NotificationCompat
 import androidx.work.*
+import com.google.common.util.concurrent.ListenableFuture
 import com.vernu.sms.AppConstants
+import com.vernu.sms.R
 import com.vernu.sms.TextbeeUtils
+import com.vernu.sms.database.SmsDedupeStore
+import com.vernu.sms.helpers.DeviceConfig
 import com.vernu.sms.helpers.SMSHelper
+import com.vernu.sms.helpers.SendSlotScheduler
 import com.vernu.sms.helpers.SendTiming
 import com.vernu.sms.helpers.SharedPreferenceHelper
+import java.util.concurrent.TimeUnit
 
 class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(context, workerParams) {
     companion object {
         private const val TAG = "SmsSendWorker"
         private const val QUEUE_NAME = "sms_send_queue"
+        private const val FOREGROUND_CHANNEL_ID = "sms_sending"
+        private const val FOREGROUND_NOTIFICATION_ID = 7391
 
         const val KEY_PHONE = "phone"
         const val KEY_MESSAGE = "message"
@@ -20,6 +33,7 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
         const val KEY_SMS_BATCH_ID = "sms_batch_id"
         const val KEY_SIM_SUBSCRIPTION_ID = "sim_subscription_id"
         const val KEY_PUSH_RECEIVED_AT = "push_received_at"
+        const val KEY_LEGACY_QUEUE = "legacy_queue"
 
         @JvmOverloads
         fun enqueue(
@@ -27,6 +41,16 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
             smsId: String?, smsBatchId: String?, simSubscriptionId: Int?,
             pushReceivedAtMillis: Long = 0
         ) {
+            if (smsId != null) {
+                val store = SmsDedupeStore.get(context)
+                if (store.wasSent(smsId, phone)) {
+                    Log.d(TAG, "SMS already sent, skipping - ID: $smsId")
+                    return
+                }
+                store.markSeen(smsId, phone)
+            }
+
+            val legacy = !DeviceConfig.sendSchedulerV2Enabled(context)
             val inputData = Data.Builder()
                 .putString(KEY_PHONE, phone)
                 .putString(KEY_MESSAGE, message)
@@ -34,18 +58,54 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
                 .putString(KEY_SMS_BATCH_ID, smsBatchId)
                 .putInt(KEY_SIM_SUBSCRIPTION_ID, simSubscriptionId ?: -1)
                 .putLong(KEY_PUSH_RECEIVED_AT, pushReceivedAtMillis)
+                .putBoolean(KEY_LEGACY_QUEUE, legacy)
                 .build()
 
+            if (legacy) {
+                enqueueLegacy(context, inputData)
+            } else {
+                enqueuePaced(context, inputData, smsId, phone)
+            }
+            Log.d(TAG, "SMS enqueued for sending - ID: $smsId, Phone: $phone, legacy: $legacy")
+        }
+
+        // One job per message. The scheduler spaces them with initial delays,
+        // and a job due now runs expedited so it is not held back by battery saving.
+        private fun enqueuePaced(context: Context, inputData: Data, smsId: String?, phone: String) {
+            val gapMs = configuredDelaySeconds(context) * 1000L
+            val initialDelayMs = SendSlotScheduler.reserve(context, gapMs)
+
+            val builder = OneTimeWorkRequest.Builder(SmsSendWorker::class.java)
+                .setInputData(inputData)
+            if (initialDelayMs > 0) {
+                builder.setInitialDelay(initialDelayMs, TimeUnit.MILLISECONDS)
+            } else {
+                builder.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+            }
+
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                "sms_send_${smsId}_${phone.hashCode()}",
+                ExistingWorkPolicy.KEEP,
+                builder.build()
+            )
+        }
+
+        // The path every release before 2.9.0 used: a single chain that sleeps
+        // between sends. Kept so the server can switch the new path off.
+        private fun enqueueLegacy(context: Context, inputData: Data) {
             val workRequest = OneTimeWorkRequest.Builder(SmsSendWorker::class.java)
                 .setInputData(inputData)
                 .build()
-
             WorkManager.getInstance(context)
                 .beginUniqueWork(QUEUE_NAME, ExistingWorkPolicy.APPEND_OR_REPLACE, workRequest)
                 .enqueue()
-
-            Log.d(TAG, "SMS enqueued for sending - ID: $smsId, Phone: $phone")
         }
+
+        private fun configuredDelaySeconds(context: Context): Int =
+            SharedPreferenceHelper.getSharedPreferenceInt(
+                context, AppConstants.SHARED_PREFS_SMS_SEND_DELAY_SECONDS_KEY,
+                AppConstants.DEFAULT_SMS_SEND_DELAY_SECONDS
+            ).coerceIn(0, 3600)
     }
 
     override fun doWork(): Result {
@@ -55,6 +115,7 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
         val smsBatchId = inputData.getString(KEY_SMS_BATCH_ID)
         val simSubscriptionId = inputData.getInt(KEY_SIM_SUBSCRIPTION_ID, -1)
         val pushReceivedAt = inputData.getLong(KEY_PUSH_RECEIVED_AT, 0)
+        val legacy = inputData.getBoolean(KEY_LEGACY_QUEUE, true)
 
         if (phone == null || message == null || smsId == null) {
             Log.e(TAG, "Missing required parameters")
@@ -62,32 +123,65 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
         }
 
         val context = applicationContext
+        val store = SmsDedupeStore.get(context)
+        if (store.wasSent(smsId, phone)) {
+            Log.d(TAG, "SMS already sent, skipping - ID: $smsId")
+            return Result.success()
+        }
+
         val resolvedSim = resolveSim(context, simSubscriptionId)
 
         // Stamped here, so the gap to sentAt is radio time and the gap from
         // pushReceivedAt is time this message waited in the worker queue
         val timing = SendTiming(pushReceivedAt, System.currentTimeMillis())
 
-        if (resolvedSim != null) {
+        val sent = if (resolvedSim != null) {
             SMSHelper.sendSMSFromSpecificSim(phone, message, resolvedSim, smsId, smsBatchId ?: "", context, timing)
         } else {
             SMSHelper.sendSMS(phone, message, smsId, smsBatchId ?: "", context, timing)
         }
+        if (sent) store.markSent(smsId, phone)
 
-        val delaySeconds = SharedPreferenceHelper.getSharedPreferenceInt(
-            context, AppConstants.SHARED_PREFS_SMS_SEND_DELAY_SECONDS_KEY,
-            AppConstants.DEFAULT_SMS_SEND_DELAY_SECONDS
-        ).coerceIn(0, 3600)
-
-        if (delaySeconds > 0) {
-            try {
-                Thread.sleep(delaySeconds * 1000L)
-            } catch (e: InterruptedException) {
-                Thread.currentThread().interrupt()
+        if (legacy) {
+            val delaySeconds = configuredDelaySeconds(context)
+            if (delaySeconds > 0) {
+                try {
+                    Thread.sleep(delaySeconds * 1000L)
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                }
             }
+            // A failure here would cancel every message behind it in the chain
+            return Result.success()
         }
 
-        return Result.success()
+        return if (sent) Result.success() else Result.failure()
+    }
+
+    // Shown only on Android 11 and below, where expedited work runs as a
+    // foreground service. Android 12 and up runs it without a notification.
+    override fun getForegroundInfoAsync(): ListenableFuture<ForegroundInfo> =
+        CallbackToFutureAdapter.getFuture { completer ->
+            completer.set(buildForegroundInfo())
+            "SmsSendWorker.foregroundInfo"
+        }
+
+    private fun buildForegroundInfo(): ForegroundInfo {
+        val manager = applicationContext.getSystemService(NotificationManager::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    FOREGROUND_CHANNEL_ID, "Sending messages", NotificationManager.IMPORTANCE_LOW
+                )
+            )
+        }
+        val notification = NotificationCompat.Builder(applicationContext, FOREGROUND_CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("Sending SMS")
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+        return ForegroundInfo(FOREGROUND_NOTIFICATION_ID, notification)
     }
 
     private fun resolveSim(context: Context, backendSimId: Int): Int? {

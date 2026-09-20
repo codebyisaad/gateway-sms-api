@@ -41,4 +41,8 @@ public class AppConstants {
     public static final String SHARED_PREFS_CONFIG_UPDATE_NOTIFICATIONS_KEY = "CONFIG_UPDATE_NOTIFICATIONS_ENABLED";
     public static final String SHARED_PREFS_CONFIG_LATEST_VERSION_CODE_KEY = "CONFIG_LATEST_VERSION_CODE";
     public static final String SHARED_PREFS_CONFIG_LATEST_VERSION_NAME_KEY = "CONFIG_LATEST_VERSION_NAME";
+
+    // Send pacing without sleeping inside a worker
+    public static final String SHARED_PREFS_NEXT_SEND_SLOT_MS_KEY = "NEXT_SEND_SLOT_MS";
+    public static final String SHARED_PREFS_LAST_SEND_RESERVED_AT_MS_KEY = "LAST_SEND_RESERVED_AT_MS";
 }

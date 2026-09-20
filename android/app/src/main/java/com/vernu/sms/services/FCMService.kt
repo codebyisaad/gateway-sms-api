@@ -90,6 +90,10 @@ class FCMService : FirebaseMessagingService() {
             Log.e(TAG, "No recipients found in SMS payload")
             return
         }
+        if (smsPayload.smsId.isNullOrEmpty() || smsPayload.message == null) {
+            Log.e(TAG, "SMS payload is missing its id or message")
+            return
+        }
 
         for (recipient in recipients) {
             SmsSendWorker.enqueue(
