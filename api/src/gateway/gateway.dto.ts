@@ -1412,12 +1412,51 @@ export class HeartbeatInputDTO {
   })
   isPowerSaveMode?: boolean
 
+  @ApiProperty({ type: Boolean, required: false, description: 'SEND_SMS granted' })
+  hasSendSmsPermission?: boolean
+
+  @ApiProperty({ type: Boolean, required: false, description: 'RECEIVE_SMS granted' })
+  hasReceiveSmsPermission?: boolean
+
+  @ApiProperty({ type: Boolean, required: false, description: 'READ_PHONE_STATE granted' })
+  hasReadPhoneStatePermission?: boolean
+
+  @ApiProperty({
+    type: Boolean,
+    required: false,
+    description: 'POST_NOTIFICATIONS granted. Always true below Android 13.',
+  })
+  hasPostNotificationsPermission?: boolean
+
+  @ApiProperty({ type: Boolean, required: false, description: 'Sticky notification switched on' })
+  stickyNotificationEnabled?: boolean
+
+  @ApiProperty({ type: Boolean, required: false, description: 'Running the legacy UI' })
+  usingLegacyUi?: boolean
+
   @ApiProperty({
     type: SimInfoCollectionDTO,
     required: false,
     description: 'SIMs installed in the device at the time of the heartbeat.',
   })
   simInfo?: SimInfoCollectionDTO
+}
+
+export class DeviceConfigDTO {
+  @ApiProperty({ type: Boolean, description: 'Use the per-message send scheduler' })
+  sendSchedulerV2Enabled: boolean
+
+  @ApiProperty({ type: Boolean, description: 'Ask the server for missed messages' })
+  recoveryPollEnabled: boolean
+
+  @ApiProperty({ type: Boolean, description: 'Show a notification when a newer app exists' })
+  updateNotificationsEnabled: boolean
+
+  @ApiProperty({ type: Number, description: 'versionCode of the latest release' })
+  latestVersionCode: number
+
+  @ApiProperty({ type: String, description: 'versionName of the latest release' })
+  latestVersionName: string
 }
 
 export class HeartbeatResponseDTO {
@@ -1448,6 +1487,20 @@ export class HeartbeatResponseDTO {
     description: 'Device name (if updated)',
   })
   name?: string
+
+  @ApiProperty({
+    type: Number,
+    required: false,
+    description: 'Messages waiting for this device that a push may have missed',
+  })
+  pendingCount?: number
+
+  @ApiProperty({
+    type: DeviceConfigDTO,
+    required: false,
+    description: 'Settings the app applies until the next heartbeat',
+  })
+  config?: DeviceConfigDTO
 }
 
 export class GatewayStatsDTO {

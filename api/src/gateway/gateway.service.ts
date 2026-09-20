@@ -36,6 +36,7 @@ import {
   resolveReceivedAt,
 } from './received-sms-input'
 import { appVersionMetadata } from './app-version-metadata'
+import { deviceConfigFor } from './device-config'
 import { errorHistoryPush } from './error-history'
 import {
   resolveReportAttempt,
@@ -139,6 +140,8 @@ export class GatewayService {
     const deviceData: any = { ...input, user }
     // set-default is the only writer; there is no ValidationPipe to strip it
     delete deviceData.isDefault
+    // older builds serialize an unset versionCode as 0
+    if (!deviceData.appVersionCode) delete deviceData.appVersionCode
     // normalizeOsFields owns these; raw OS metadata must never reach the display fields
     delete deviceData.os
     delete deviceData.osVersion
@@ -321,9 +324,8 @@ export class GatewayService {
       )
     }
 
-    if (input.enabled !== false) {
-      input.enabled = true;
-    }
+    // A partial update that omits enabled must not flip a disabled device on
+    if (input.enabled === undefined) delete input.enabled
 
     // enforce the device limit only on the disabled -> enabled transition so
     // routine updates of already-enabled devices are never blocked
@@ -337,6 +339,8 @@ export class GatewayService {
     const updateData: any = { ...input }
     // set-default is the only writer; there is no ValidationPipe to strip it
     delete updateData.isDefault
+    // older builds serialize an unset versionCode as 0
+    if (!updateData.appVersionCode) delete updateData.appVersionCode
     // normalizeOsFields owns these; raw OS metadata must never reach the display fields
     delete updateData.os
     delete updateData.osVersion
@@ -358,15 +362,27 @@ export class GatewayService {
 
     if (input.fcmToken && input.fcmToken !== device.fcmToken) {
       updateData.fcmTokenUpdatedAt = now
-      updateData.fcmTokenInvalidatedAt = undefined
-      updateData.fcmTokenInvalidReason = undefined
     }
 
     return await this.deviceModel.findByIdAndUpdate(
       deviceId,
-      { $set: updateData },
+      this.tokenUpdate(device, input.fcmToken, updateData),
       { new: true },
     )
+  }
+
+  // Mongoose drops undefined keys from $set, so clearing an invalidation
+  // needs $unset. Any reported token clears it, changed or not.
+  private tokenUpdate(
+    device: { fcmTokenInvalidatedAt?: Date },
+    fcmToken: string | undefined,
+    updateData: Record<string, unknown>,
+  ) {
+    const update: Record<string, unknown> = { $set: updateData }
+    if (fcmToken && device.fcmTokenInvalidatedAt) {
+      update.$unset = { fcmTokenInvalidatedAt: 1, fcmTokenInvalidReason: 1 }
+    }
+    return update
   }
 
   async deleteDevice(deviceId: string): Promise<any> {
@@ -1801,8 +1817,6 @@ const updatedSms = await this.smsModel.findByIdAndUpdate(
     if (input.fcmToken && input.fcmToken !== device.fcmToken) {
       updateData.fcmToken = input.fcmToken
       updateData.fcmTokenUpdatedAt = now
-      updateData.fcmTokenInvalidatedAt = undefined
-      updateData.fcmTokenInvalidReason = undefined
       fcmTokenUpdated = true
     }
 
@@ -1927,6 +1941,24 @@ const updatedSms = await this.smsModel.findByIdAndUpdate(
       updateData['powerInfo.lastUpdated'] = now
     }
 
+    // Update appStateInfo if provided
+    const appStateKeys = [
+      'hasSendSmsPermission',
+      'hasReceiveSmsPermission',
+      'hasReadPhoneStatePermission',
+      'hasPostNotificationsPermission',
+      'stickyNotificationEnabled',
+      'usingLegacyUi',
+    ] as const
+    if (appStateKeys.some((key) => input[key] !== undefined)) {
+      for (const key of appStateKeys) {
+        if (input[key] !== undefined) {
+          updateData[`appStateInfo.${key}`] = input[key]
+        }
+      }
+      updateData['appStateInfo.lastUpdated'] = now
+    }
+
     // Update simInfo if provided
     if (input.simInfo !== undefined) {
       updateData.simInfo = {
@@ -1936,9 +1968,10 @@ const updatedSms = await this.smsModel.findByIdAndUpdate(
     }
 
     // Update device with all changes
-    await this.deviceModel.findByIdAndUpdate(deviceId, {
-      $set: updateData,
-    })
+    await this.deviceModel.findByIdAndUpdate(
+      deviceId,
+      this.tokenUpdate(device, input.fcmToken, updateData),
+    )
 
     // Fetch updated device to get current name
     const updatedDevice = await this.deviceModel.findById(deviceId)
@@ -1948,6 +1981,8 @@ const updatedSms = await this.smsModel.findByIdAndUpdate(
       fcmTokenUpdated,
       lastHeartbeat: now,
       name: updatedDevice?.name,
+      pendingCount: 0,
+      config: deviceConfigFor(updatedDevice),
     }
   }
 }

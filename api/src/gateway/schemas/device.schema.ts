@@ -244,6 +244,32 @@ export class Device {
     lastUpdated?: Date
   }
 
+  // Permissions and settings inside the app, reported on every heartbeat.
+  @Prop({
+    type: {
+      hasSendSmsPermission: Boolean,
+      hasReceiveSmsPermission: Boolean,
+      hasReadPhoneStatePermission: Boolean,
+      hasPostNotificationsPermission: Boolean,
+      stickyNotificationEnabled: Boolean,
+      usingLegacyUi: Boolean,
+      lastUpdated: Date,
+    },
+  })
+  appStateInfo: {
+    hasSendSmsPermission?: boolean
+    hasReceiveSmsPermission?: boolean
+    hasReadPhoneStatePermission?: boolean
+    hasPostNotificationsPermission?: boolean
+    stickyNotificationEnabled?: boolean
+    usingLegacyUi?: boolean
+    lastUpdated?: Date
+  }
+
+  // Per-device overrides of the settings returned on the heartbeat reply.
+  @Prop({ type: SchemaTypes.Mixed })
+  configOverrides?: Record<string, unknown>
+
   // set by { timestamps: true }; declared here for typing only, no @Prop
   createdAt?: Date
   updatedAt?: Date

@@ -339,6 +339,21 @@ describe('GatewayService', () => {
       })
     })
 
+    it('drops an appVersionCode of 0, which older builds send when unset', async () => {
+      mockDeviceModel.findOne.mockResolvedValue(null)
+      mockBillingService.getUserLimits.mockResolvedValue({ deviceLimit: -1 })
+      mockDeviceModel.create.mockResolvedValue({ _id: 'device123' })
+
+      await service.registerDevice(
+        { ...mockDeviceInput, appVersionCode: 0 },
+        mockUser,
+      )
+
+      expect(mockDeviceModel.create).toHaveBeenCalledWith(
+        expect.not.objectContaining({ appVersionCode: 0 }),
+      )
+    })
+
     it('should block registration when the device limit is already reached', async () => {
       mockDeviceModel.findOne.mockResolvedValue(null)
       mockBillingService.getUserLimits.mockResolvedValue({ deviceLimit: 1 })
@@ -693,6 +708,44 @@ describe('GatewayService', () => {
       ).rejects.toThrow(HttpException)
       expect(mockDeviceModel.findById).toHaveBeenCalledWith(mockDeviceId)
       expect(mockDeviceModel.findByIdAndUpdate).not.toHaveBeenCalled()
+    })
+
+    it('does not re-enable a disabled device when the update omits enabled', async () => {
+      mockDeviceModel.findById.mockResolvedValue({ ...mockDevice, enabled: false })
+      mockDeviceModel.findByIdAndUpdate.mockResolvedValue(mockDevice)
+
+      await service.updateDevice(mockDeviceId, { fcmToken: 'rotated' })
+
+      const update = mockDeviceModel.findByIdAndUpdate.mock.calls[0][1]
+      expect(update.$set).not.toHaveProperty('enabled')
+      expect(mockBillingService.getUserLimits).not.toHaveBeenCalled()
+    })
+
+    it('drops an appVersionCode of 0 so a partial update cannot zero the stored one', async () => {
+      mockDeviceModel.findById.mockResolvedValue(mockDevice)
+      mockDeviceModel.findByIdAndUpdate.mockResolvedValue(mockDevice)
+
+      await service.updateDevice(mockDeviceId, { fcmToken: 'x', appVersionCode: 0 })
+
+      const update = mockDeviceModel.findByIdAndUpdate.mock.calls[0][1]
+      expect(update.$set).not.toHaveProperty('appVersionCode')
+    })
+
+    it('clears a token invalidation when any token is reported, changed or not', async () => {
+      mockDeviceModel.findById.mockResolvedValue({
+        ...mockDevice,
+        fcmToken: 'same',
+        fcmTokenInvalidatedAt: new Date(),
+      })
+      mockDeviceModel.findByIdAndUpdate.mockResolvedValue(mockDevice)
+
+      await service.updateDevice(mockDeviceId, { fcmToken: 'same' })
+
+      const update = mockDeviceModel.findByIdAndUpdate.mock.calls[0][1]
+      expect(update.$unset).toEqual({
+        fcmTokenInvalidatedAt: 1,
+        fcmTokenInvalidReason: 1,
+      })
     })
 
     it('must not blank a stored osVersion when a legacy client sends an empty BASE_OS', async () => {
@@ -2354,6 +2407,66 @@ describe('GatewayService', () => {
       expect(update['powerInfo.isDeviceIdleMode']).toBe(true)
       expect(update['powerInfo.isPowerSaveMode']).toBe(false)
       expect(update['powerInfo.lastUpdated']).toBeInstanceOf(Date)
+    })
+
+    it('stores the app state', async () => {
+      await service.heartbeat(deviceId, {
+        hasSendSmsPermission: true,
+        hasReceiveSmsPermission: false,
+        hasReadPhoneStatePermission: true,
+        hasPostNotificationsPermission: false,
+        stickyNotificationEnabled: true,
+        usingLegacyUi: false,
+      } as any)
+
+      const update = heartbeatUpdate()
+      expect(update['appStateInfo.hasSendSmsPermission']).toBe(true)
+      expect(update['appStateInfo.hasReceiveSmsPermission']).toBe(false)
+      expect(update['appStateInfo.hasPostNotificationsPermission']).toBe(false)
+      expect(update['appStateInfo.stickyNotificationEnabled']).toBe(true)
+      expect(update['appStateInfo.usingLegacyUi']).toBe(false)
+      expect(update['appStateInfo.lastUpdated']).toBeInstanceOf(Date)
+    })
+
+    it('clears a token invalidation when the same token is reported again', async () => {
+      mockDeviceModel.findById.mockResolvedValue({
+        _id: deviceId,
+        fcmToken: 'same',
+        fcmTokenInvalidatedAt: new Date(),
+      })
+
+      await service.heartbeat(deviceId, { fcmToken: 'same' } as any)
+
+      const update = mockDeviceModel.findByIdAndUpdate.mock.calls[0][1]
+      expect(update.$unset).toEqual({
+        fcmTokenInvalidatedAt: 1,
+        fcmTokenInvalidReason: 1,
+      })
+      expect(update.$set).not.toHaveProperty('fcmToken')
+    })
+
+    it('returns the fleet config and a zero pending count', async () => {
+      const result = await service.heartbeat(deviceId, {} as any)
+
+      expect(result.pendingCount).toBe(0)
+      expect(result.config).toEqual(
+        expect.objectContaining({
+          sendSchedulerV2Enabled: expect.any(Boolean),
+          recoveryPollEnabled: expect.any(Boolean),
+          latestVersionCode: expect.any(Number),
+        }),
+      )
+    })
+
+    it('applies the device config overrides to the reply', async () => {
+      mockDeviceModel.findById.mockResolvedValue({
+        _id: deviceId,
+        configOverrides: { recoveryPollEnabled: true },
+      })
+
+      const result = await service.heartbeat(deviceId, {} as any)
+
+      expect(result.config.recoveryPollEnabled).toBe(true)
     })
 
     it('stores memory and storage, which were accepted but dropped before', async () => {
