@@ -8,7 +8,11 @@ import { createHash, randomInt } from 'crypto'
 import { v4 as uuidv4 } from 'uuid'
 import { InjectModel } from '@nestjs/mongoose'
 import { ApiKey, ApiKeyDocument } from './schemas/api-key.schema'
-import { Model } from 'mongoose'
+import {
+  ApiKeyTombstone,
+  ApiKeyTombstoneDocument,
+} from './schemas/api-key-tombstone.schema'
+import { Model, Types } from 'mongoose'
 import { User, UserDocument } from '../users/schemas/user.schema'
 import axios from 'axios'
 import {
@@ -46,6 +50,8 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     @InjectModel(ApiKey.name) private apiKeyModel: Model<ApiKeyDocument>,
+    @InjectModel(ApiKeyTombstone.name)
+    private apiKeyTombstoneModel: Model<ApiKeyTombstoneDocument>,
     @InjectModel(PasswordReset.name)
     private passwordResetModel: Model<PasswordResetDocument>,
     private accessFootprintService: AccessFootprintService,
@@ -615,7 +621,7 @@ export class AuthService {
   }
 
   async deleteApiKey(apiKeyId: string) {
-    const apiKey = await this.apiKeyModel.findOne({ _id: apiKeyId })
+    const apiKey = await this.apiKeyModel.findOne({ _id: apiKeyId }).lean()
     if (!apiKey) {
       throw new HttpException(
         {
@@ -630,6 +636,19 @@ export class AuthService {
         HttpStatus.BAD_REQUEST,
       )
     }
+
+    await this.apiKeyTombstoneModel.updateOne(
+      { apiKeyId: new Types.ObjectId(apiKeyId) },
+      {
+        $setOnInsert: {
+          apiKeyId: new Types.ObjectId(apiKeyId),
+          userId: apiKey.user,
+          deletedAt: new Date(),
+          apiKey,
+        },
+      },
+      { upsert: true },
+    )
 
     await this.apiKeyModel.deleteOne({ _id: apiKeyId })
   }

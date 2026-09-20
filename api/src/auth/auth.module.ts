@@ -7,6 +7,10 @@ import { AuthController } from './auth.controller'
 import { AuthService } from './auth.service'
 import { JwtStrategy } from './jwt.strategy'
 import { ApiKey, ApiKeySchema } from './schemas/api-key.schema'
+import {
+  ApiKeyTombstone,
+  ApiKeyTombstoneSchema,
+} from './schemas/api-key-tombstone.schema'
 import { MailModule } from 'src/mail/mail.module'
 import { CommonModule } from '../common/common.module'
 import {
@@ -31,6 +35,10 @@ import { OptionalAuthGuard } from './guards/optional-auth.guard'
       {
         name: ApiKey.name,
         schema: ApiKeySchema,
+      },
+      {
+        name: ApiKeyTombstone.name,
+        schema: ApiKeyTombstoneSchema,
       },
       {
         name: PasswordReset.name,

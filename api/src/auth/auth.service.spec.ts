@@ -10,7 +10,7 @@ const sha256 = (value: string) =>
 const BROWSER_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
 
-// AuthService takes eight constructor deps. Only the ones a given flow
+// AuthService takes ten constructor deps. Only the ones a given flow
 // touches are given real behaviour; the rest are inert stubs.
 const build = () => {
   let lastApiKeyDoc: any
@@ -24,6 +24,11 @@ const build = () => {
   apiKeyModel.updateOne = jest.fn().mockReturnValue({
     exec: jest.fn().mockResolvedValue(undefined),
   })
+  apiKeyModel.deleteOne = jest.fn().mockResolvedValue({ deletedCount: 1 })
+
+  const apiKeyTombstoneModel = {
+    updateOne: jest.fn().mockResolvedValue({ upsertedCount: 1 }),
+  }
 
   const usersService = {
     findOne: jest.fn(),
@@ -46,6 +51,7 @@ const build = () => {
     usersService as any,
     jwtService as any,
     apiKeyModel,
+    apiKeyTombstoneModel as any,
     passwordResetModel as any,
     {} as any, // accessLogModel
     {} as any, // emailVerificationModel
@@ -57,6 +63,7 @@ const build = () => {
   return {
     service,
     apiKeyModel,
+    apiKeyTombstoneModel,
     usersService,
     passwordResetModel,
     mailService,
@@ -323,6 +330,62 @@ describe('AuthService', () => {
       const projection = apiKeyModel.find.mock.calls[0][1]
       expect(projection).toContain('-hashedApiKey')
       expect(projection).toContain('-hashedApiKeySha256')
+    })
+  })
+
+  describe('deleteApiKey', () => {
+    const apiKeyId = '507f1f77bcf86cd799439011'
+    const userId = '507f1f77bcf86cd799439012'
+    const revokedKey = {
+      _id: apiKeyId,
+      user: userId,
+      name: 'Server key',
+      apiKey: 'txb_abc123******',
+      hashedApiKey: 'bcrypt-hash',
+      hashedApiKeySha256: 'sha-hash',
+      usageCount: 128,
+      revokedAt: new Date('2026-09-01T00:00:00.000Z'),
+    }
+    const leanFindOne = (model: any, value: any) =>
+      model.findOne.mockReturnValue({
+        lean: jest.fn().mockResolvedValue(value),
+      })
+
+    it('keeps the whole key document before deleting it', async () => {
+      const { service, apiKeyModel, apiKeyTombstoneModel } = build()
+      leanFindOne(apiKeyModel, revokedKey)
+
+      await service.deleteApiKey(apiKeyId)
+
+      const [filter, update, options] =
+        apiKeyTombstoneModel.updateOne.mock.calls[0]
+      expect(filter.apiKeyId.toString()).toBe(apiKeyId)
+      expect(update.$setOnInsert.apiKey).toEqual(revokedKey)
+      expect(update.$setOnInsert.userId).toBe(userId)
+      expect(update.$setOnInsert.deletedAt).toBeInstanceOf(Date)
+      expect(options).toEqual({ upsert: true })
+      expect(apiKeyModel.deleteOne).toHaveBeenCalledWith({ _id: apiKeyId })
+      expect(apiKeyTombstoneModel.updateOne.mock.invocationCallOrder[0]).toBeLessThan(
+        apiKeyModel.deleteOne.mock.invocationCallOrder[0],
+      )
+    })
+
+    it('records nothing when the key does not exist', async () => {
+      const { service, apiKeyModel, apiKeyTombstoneModel } = build()
+      leanFindOne(apiKeyModel, null)
+
+      await expect(service.deleteApiKey(apiKeyId)).rejects.toThrow(HttpException)
+      expect(apiKeyTombstoneModel.updateOne).not.toHaveBeenCalled()
+      expect(apiKeyModel.deleteOne).not.toHaveBeenCalled()
+    })
+
+    it('records nothing when the key is still active', async () => {
+      const { service, apiKeyModel, apiKeyTombstoneModel } = build()
+      leanFindOne(apiKeyModel, { ...revokedKey, revokedAt: undefined })
+
+      await expect(service.deleteApiKey(apiKeyId)).rejects.toThrow(HttpException)
+      expect(apiKeyTombstoneModel.updateOne).not.toHaveBeenCalled()
+      expect(apiKeyModel.deleteOne).not.toHaveBeenCalled()
     })
   })
 
