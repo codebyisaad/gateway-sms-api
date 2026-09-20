@@ -11,9 +11,8 @@ import EmptyState from '@/components/shared/empty-state'
 import SmsDetailsDialog from './sms-details-dialog'
 import { MessageRow, MessageRowSkeleton } from './message-row'
 import { groupMessagesByDay } from './group'
+import { useHistoryFilters } from './use-history-filters'
 import type { MessagesPagination, SmsMessage } from './types'
-
-const SEARCH_DEBOUNCE_MS = 300
 
 // Container for the message-history screen: owns filter/pagination state and
 // data fetching; rendering is delegated to the focused subcomponents.
@@ -21,28 +20,25 @@ export default function MessageHistory() {
   const [selectedMessage, setSelectedMessage] = useState<SmsMessage | null>(null)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
 
-  // Empty means all devices: nothing is sent on the request, so the scope
-  // stays correct when a device is added mid-session.
-  const [selectedDeviceIds, setSelectedDeviceIds] = useState<string[]>([])
-  const [messageType, setMessageType] = useState('all')
-  const [page, setPage] = useState(1)
-  const [limit] = useState(20)
   const [autoRefreshInterval, setAutoRefreshInterval] = useState(0)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Two values: what is typed, and what has been committed to the query.
-  // Search is server-side, so it is debounced to avoid a request per keystroke.
-  const [searchInput, setSearchInput] = useState('')
-  const [search, setSearch] = useState('')
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearch(searchInput.trim())
-      setPage(1)
-    }, SEARCH_DEBOUNCE_MS)
-    return () => clearTimeout(timer)
-  }, [searchInput])
+  // Empty deviceIds means all devices: nothing is sent on the request, so the
+  // scope stays correct when a device is added mid-session.
+  const {
+    deviceIds: selectedDeviceIds,
+    direction: messageType,
+    search,
+    page,
+    limit,
+    searchInput,
+    setSearchInput,
+    clearSearch,
+    handleDeviceSelectionChange,
+    handleDirectionChange: handleMessageTypeChange,
+    handlePageChange,
+  } = useHistoryFilters()
 
   const {
     data: devices,
@@ -118,18 +114,6 @@ export default function MessageHistory() {
     setSelectedMessage(message)
     setIsDetailsDialogOpen(true)
   }
-
-  const handleDeviceSelectionChange = (deviceIds: string[]) => {
-    setSelectedDeviceIds(deviceIds)
-    setPage(1)
-  }
-
-  const handleMessageTypeChange = (type: string) => {
-    setMessageType(type)
-    setPage(1)
-  }
-
-  const clearSearch = () => setSearchInput('')
 
   if (isLoadingDevices)
     return (
@@ -250,7 +234,7 @@ export default function MessageHistory() {
         <Pagination
           page={page}
           totalPages={pagination.totalPages}
-          onPageChange={setPage}
+          onPageChange={handlePageChange}
         />
       )}
 
