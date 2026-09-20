@@ -56,6 +56,32 @@ class SendSlotSchedulerTest {
         assertEquals(now + 5_000, slot.nextSlotMs)
     }
 
+    private class MemoryStore(vararg pairs: Pair<String, Long>) : SendSlotScheduler.SlotStore {
+        val map = mutableMapOf(*pairs)
+        override fun get(key: String) = map[key] ?: 0L
+        override fun set(key: String, value: Long) { map[key] = value }
+    }
+
+    @Test
+    fun aWaitBeyondTheCapIsNotReservedAndChangesNothing() {
+        val keys = SendSlotScheduler.EXECUTION
+        val store = MemoryStore(keys.slotKey to now + 300_000, keys.lastReservedKey to now)
+        val before = store.map.toMap()
+
+        assertEquals(null, SendSlotScheduler.reserveIfWithin(store, keys, 5_000, 120_000, now))
+        assertEquals(before, store.map)
+    }
+
+    @Test
+    fun aWaitWithinTheCapIsReservedAndAdvancesTheSlot() {
+        val keys = SendSlotScheduler.EXECUTION
+        val store = MemoryStore(keys.slotKey to now + 30_000, keys.lastReservedKey to now)
+
+        assertEquals(30_000L, SendSlotScheduler.reserveIfWithin(store, keys, 5_000, 120_000, now))
+        assertEquals(now + 35_000, store.map[keys.slotKey])
+        assertEquals(now, store.map[keys.lastReservedKey])
+    }
+
     @Test
     fun slotTooFarAheadResets() {
         val slot = SendSlotScheduler.next(now + SendSlotScheduler.MAX_SLOT_AHEAD_MS + 1, now, now, 5_000)

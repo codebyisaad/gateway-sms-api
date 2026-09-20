@@ -27,8 +27,13 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
         private const val QUEUE_NAME = "sms_send_queue"
         private const val FOREGROUND_CHANNEL_ID = "sms_sending"
         private const val FOREGROUND_NOTIFICATION_ID = 7391
-        // Longest a batched job waits in place to keep the gap before sending
+        // Longest a batched job waits in place to keep the gap before sending;
+        // a longer wait means the job comes back later instead of sending early
         private const val MAX_EXECUTION_WAIT_MS = 120_000L
+
+        // Admission, slot reservation and enqueue happen as one step, so two
+        // pushes for the same message cannot both take a slot
+        private val enqueueLock = Any()
 
         const val KEY_PHONE = "phone"
         const val KEY_MESSAGE = "message"
@@ -75,12 +80,12 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
 
         // One job per message. The scheduler spaces them with initial delays,
         // and a job due now runs expedited so it is not held back by battery saving.
-        private fun enqueuePaced(context: Context, inputData: Data, smsId: String?, phone: String) {
+        private fun enqueuePaced(context: Context, inputData: Data, smsId: String?, phone: String) = synchronized(enqueueLock) {
             val uniqueName = "sms_send_${smsId}_${phone.hashCode()}"
             // A duplicate push must not reserve a slot that KEEP will then discard
             if (isQueued(context, uniqueName)) {
                 Log.d(TAG, "SMS already queued, skipping - ID: $smsId")
-                return
+                return@synchronized
             }
 
             val gapMs = configuredDelaySeconds(context) * 1000L
@@ -88,6 +93,7 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
 
             val builder = OneTimeWorkRequest.Builder(SmsSendWorker::class.java)
                 .setInputData(inputData)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
             if (initialDelayMs > 0) {
                 builder.setInitialDelay(initialDelayMs, TimeUnit.MILLISECONDS)
             } else {
@@ -154,13 +160,20 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
         // wakes, so the gap is enforced once more right before the radio call
         if (!legacy) {
             val gapMs = configuredDelaySeconds(context) * 1000L
-            val wait = SendSlotScheduler.reserve(context, gapMs, SendSlotScheduler.EXECUTION)
-                .coerceAtMost(MAX_EXECUTION_WAIT_MS)
+            val wait = SendSlotScheduler.reserveIfWithin(
+                context, gapMs, SendSlotScheduler.EXECUTION, MAX_EXECUTION_WAIT_MS
+            )
+            if (wait == null) {
+                Log.d(TAG, "Send gap not reached yet, coming back later - ID: $smsId")
+                return Result.retry()
+            }
             if (wait > 0) {
                 try {
                     Thread.sleep(wait)
                 } catch (e: InterruptedException) {
+                    // A cancelled job must not reach the radio
                     Thread.currentThread().interrupt()
+                    return Result.retry()
                 }
             }
         }

@@ -33,18 +33,37 @@ object SendSlotScheduler {
         AppConstants.SHARED_PREFS_LAST_SEND_EXEC_RESERVED_AT_MS_KEY,
     )
 
+    interface SlotStore {
+        fun get(key: String): Long
+        fun set(key: String, value: Long)
+    }
+
+    private class PrefsSlotStore(private val context: Context) : SlotStore {
+        override fun get(key: String) = SharedPreferenceHelper.getSharedPreferenceLong(context, key, 0L)
+        override fun set(key: String, value: Long) = SharedPreferenceHelper.setSharedPreferenceLong(context, key, value)
+    }
+
     private val lock = Any()
 
-    fun reserve(context: Context, gapMs: Long, keys: Keys = QUEUE): Long = synchronized(lock) {
-        val now = System.currentTimeMillis()
-        val slot = next(
-            SharedPreferenceHelper.getSharedPreferenceLong(context, keys.slotKey, 0L),
-            SharedPreferenceHelper.getSharedPreferenceLong(context, keys.lastReservedKey, 0L),
-            now,
-            gapMs,
-        )
-        SharedPreferenceHelper.setSharedPreferenceLong(context, keys.slotKey, slot.nextSlotMs)
-        SharedPreferenceHelper.setSharedPreferenceLong(context, keys.lastReservedKey, now)
+    fun reserve(context: Context, gapMs: Long, keys: Keys = QUEUE): Long =
+        reserveIfWithin(context, gapMs, keys, Long.MAX_VALUE) ?: 0L
+
+    fun reserveIfWithin(context: Context, gapMs: Long, keys: Keys, maxWaitMs: Long): Long? =
+        reserveIfWithin(PrefsSlotStore(context), keys, gapMs, maxWaitMs)
+
+    // Takes the next slot only when its wait fits; otherwise nothing is
+    // reserved and the caller comes back later.
+    fun reserveIfWithin(
+        store: SlotStore,
+        keys: Keys,
+        gapMs: Long,
+        maxWaitMs: Long,
+        nowMs: Long = System.currentTimeMillis(),
+    ): Long? = synchronized(lock) {
+        val slot = next(store.get(keys.slotKey), store.get(keys.lastReservedKey), nowMs, gapMs)
+        if (slot.initialDelayMs > maxWaitMs) return null
+        store.set(keys.slotKey, slot.nextSlotMs)
+        store.set(keys.lastReservedKey, nowMs)
         slot.initialDelayMs
     }
 }
