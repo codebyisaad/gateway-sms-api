@@ -621,7 +621,12 @@ export class AuthService {
   }
 
   async deleteApiKey(apiKeyId: string) {
-    const apiKey = await this.apiKeyModel.findOne({ _id: apiKeyId }).lean()
+    // Cast first: the id comes from the route, so it reaches the query as an
+    // ObjectId or not at all.
+    const id = Types.ObjectId.isValid(apiKeyId)
+      ? new Types.ObjectId(apiKeyId)
+      : null
+    const apiKey = id ? await this.apiKeyModel.findOne({ _id: id }).lean() : null
     if (!apiKey) {
       throw new HttpException(
         {
@@ -638,10 +643,10 @@ export class AuthService {
     }
 
     await this.apiKeyTombstoneModel.updateOne(
-      { apiKeyId: new Types.ObjectId(apiKeyId) },
+      { apiKeyId: id },
       {
         $setOnInsert: {
-          apiKeyId: new Types.ObjectId(apiKeyId),
+          apiKeyId: id,
           userId: apiKey.user,
           deletedAt: new Date(),
           apiKey,
@@ -650,7 +655,7 @@ export class AuthService {
       { upsert: true },
     )
 
-    await this.apiKeyModel.deleteOne({ _id: apiKeyId })
+    await this.apiKeyModel.deleteOne({ _id: id })
   }
 
   async revokeApiKey(apiKeyId: string) {

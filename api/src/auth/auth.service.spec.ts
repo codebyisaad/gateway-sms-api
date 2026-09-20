@@ -364,7 +364,7 @@ describe('AuthService', () => {
       expect(update.$setOnInsert.userId).toBe(userId)
       expect(update.$setOnInsert.deletedAt).toBeInstanceOf(Date)
       expect(options).toEqual({ upsert: true })
-      expect(apiKeyModel.deleteOne).toHaveBeenCalledWith({ _id: apiKeyId })
+      expect(String(apiKeyModel.deleteOne.mock.calls[0][0]._id)).toBe(apiKeyId)
       expect(apiKeyTombstoneModel.updateOne.mock.invocationCallOrder[0]).toBeLessThan(
         apiKeyModel.deleteOne.mock.invocationCallOrder[0],
       )
@@ -375,6 +375,15 @@ describe('AuthService', () => {
       leanFindOne(apiKeyModel, null)
 
       await expect(service.deleteApiKey(apiKeyId)).rejects.toThrow(HttpException)
+      expect(apiKeyTombstoneModel.updateOne).not.toHaveBeenCalled()
+      expect(apiKeyModel.deleteOne).not.toHaveBeenCalled()
+    })
+
+    it('never queries with an id that is not an ObjectId', async () => {
+      const { service, apiKeyModel, apiKeyTombstoneModel } = build()
+
+      await expect(service.deleteApiKey('not-an-id')).rejects.toThrow(HttpException)
+      expect(apiKeyModel.findOne).not.toHaveBeenCalled()
       expect(apiKeyTombstoneModel.updateOne).not.toHaveBeenCalled()
       expect(apiKeyModel.deleteOne).not.toHaveBeenCalled()
     })
