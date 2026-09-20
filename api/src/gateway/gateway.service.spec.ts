@@ -60,6 +60,7 @@ describe('GatewayService', () => {
     findOne: jest.fn(),
     findById: jest.fn(),
     findByIdAndUpdate: jest.fn(),
+    findOneAndUpdate: jest.fn(),
     updateMany: jest.fn(),
     bulkWrite: jest.fn(),
     countDocuments: jest.fn(),
@@ -2377,6 +2378,81 @@ describe('GatewayService', () => {
     })
   })
 
+  describe('claimPendingMessages', () => {
+    const deviceId = new Types.ObjectId().toHexString()
+    const currentDevice = {
+      _id: deviceId,
+      appVersionInfo: { versionCode: 20 },
+    }
+
+    beforeEach(() => {
+      mockDeviceModel.findById.mockResolvedValue(currentDevice)
+      mockDeviceModel.findByIdAndUpdate.mockResolvedValue(currentDevice)
+      mockSmsModel.findOneAndUpdate.mockReset()
+    })
+
+    it('refuses an app version without the dedupe store', async () => {
+      mockDeviceModel.findById.mockResolvedValue({
+        _id: deviceId,
+        appVersionInfo: { versionCode: 18 },
+      })
+
+      await expect(service.claimPendingMessages(deviceId)).rejects.toMatchObject({
+        status: HttpStatus.FORBIDDEN,
+      })
+      expect(mockSmsModel.findOneAndUpdate).not.toHaveBeenCalled()
+    })
+
+    it('refuses a device that never reported a version', async () => {
+      mockDeviceModel.findById.mockResolvedValue({ _id: deviceId })
+
+      await expect(service.claimPendingMessages(deviceId)).rejects.toMatchObject({
+        status: HttpStatus.FORBIDDEN,
+      })
+    })
+
+    it('refuses a second poll inside the cooldown', async () => {
+      mockDeviceModel.findById.mockResolvedValue({
+        ...currentDevice,
+        lastPendingPollAt: new Date(Date.now() - 60_000),
+      })
+
+      await expect(service.claimPendingMessages(deviceId)).rejects.toMatchObject({
+        status: HttpStatus.TOO_MANY_REQUESTS,
+      })
+    })
+
+    it('claims one message at a time until none is left, in request order', async () => {
+      const first = { _id: new Types.ObjectId(), message: 'a', recipient: '+15550100' }
+      const second = { _id: new Types.ObjectId(), message: 'b', recipient: '+15550101' }
+      mockSmsModel.findOneAndUpdate
+        .mockResolvedValueOnce(first)
+        .mockResolvedValueOnce(second)
+        .mockResolvedValueOnce(null)
+
+      const claimed = await service.claimPendingMessages(deviceId)
+
+      expect(claimed.map((m) => m.smsId)).toEqual([
+        first._id.toHexString(),
+        second._id.toHexString(),
+      ])
+      const [filter, update, options] = mockSmsModel.findOneAndUpdate.mock.calls[0]
+      expect(filter.status).toEqual({ $in: ['pending', 'dispatched', 'unknown'] })
+      expect(update.$set.status).toBe('dispatched')
+      expect(update.$inc).toEqual({ dispatchAttempts: 1 })
+      expect(options.sort).toEqual({ requestedAt: 1 })
+      expect(mockDeviceModel.findByIdAndUpdate).toHaveBeenCalledWith(deviceId, {
+        $set: { lastPendingPollAt: expect.any(Date) },
+      })
+    })
+
+    it('returns an empty list when nothing is waiting', async () => {
+      mockSmsModel.findOneAndUpdate.mockResolvedValue(null)
+
+      expect(await service.claimPendingMessages(deviceId)).toEqual([])
+    })
+  })
+
   describe('heartbeat', () => {
     const deviceId = 'device_hb'
 
@@ -2445,10 +2521,15 @@ describe('GatewayService', () => {
       expect(update.$set).not.toHaveProperty('fcmToken')
     })
 
-    it('returns the fleet config and a zero pending count', async () => {
+    it('returns the fleet config and the pending count', async () => {
+      mockSmsModel.countDocuments.mockResolvedValue(3)
+
       const result = await service.heartbeat(deviceId, {} as any)
 
-      expect(result.pendingCount).toBe(0)
+      expect(result.pendingCount).toBe(3)
+      expect(mockSmsModel.countDocuments).toHaveBeenCalledWith(
+        expect.objectContaining({ status: { $in: ['pending', 'dispatched', 'unknown'] } }),
+      )
       expect(result.config).toEqual(
         expect.objectContaining({
           sendSchedulerV2Enabled: expect.any(Boolean),

@@ -36,7 +36,13 @@ import {
   resolveReceivedAt,
 } from './received-sms-input'
 import { appVersionMetadata } from './app-version-metadata'
-import { deviceConfigFor } from './device-config'
+import { RECOVERY_MIN_VERSION_CODE, deviceConfigFor } from './device-config'
+import {
+  CLAIM_LIMIT,
+  POLL_COOLDOWN_MS,
+  pendingRecoveryFilter,
+  toRecoveryPayload,
+} from './pending-recovery'
 import { errorHistoryPush } from './error-history'
 import {
   resolveReportAttempt,
@@ -1790,6 +1796,63 @@ const updatedSms = await this.smsModel.findByIdAndUpdate(
     };
   }
 
+  // Hands the phone the messages its push may have missed. Each claim is one
+  // atomic update, so two polls at once never get the same message.
+  async claimPendingMessages(deviceId: string): Promise<any[]> {
+    const device = await this.deviceModel.findById(deviceId)
+    if (!device) {
+      throw new HttpException(
+        { success: false, error: 'Device not found' },
+        HttpStatus.NOT_FOUND,
+      )
+    }
+
+    const versionCode = device.appVersionInfo?.versionCode ?? 0
+    if (versionCode < RECOVERY_MIN_VERSION_CODE) {
+      throw new HttpException(
+        { success: false, error: 'This app version cannot recover messages' },
+        HttpStatus.FORBIDDEN,
+      )
+    }
+
+    const now = new Date()
+    if (
+      device.lastPendingPollAt &&
+      now.getTime() - device.lastPendingPollAt.getTime() < POLL_COOLDOWN_MS
+    ) {
+      throw new HttpException(
+        { success: false, error: 'Polled too recently' },
+        HttpStatus.TOO_MANY_REQUESTS,
+      )
+    }
+    await this.deviceModel.findByIdAndUpdate(deviceId, {
+      $set: { lastPendingPollAt: now },
+    })
+
+    const claimed: any[] = []
+    while (claimed.length < CLAIM_LIMIT) {
+      const sms = await this.smsModel.findOneAndUpdate(
+        pendingRecoveryFilter(deviceId, now),
+        {
+          $set: {
+            status: 'dispatched',
+            dispatchedAt: now,
+            'metadata.recoveredAt': now,
+          },
+          $inc: { dispatchAttempts: 1 },
+        },
+        { new: true, sort: { requestedAt: 1 } },
+      )
+      if (!sms) break
+      claimed.push(toRecoveryPayload(sms))
+    }
+    return claimed
+  }
+
+  async countPendingMessages(deviceId: string, now = new Date()): Promise<number> {
+    return this.smsModel.countDocuments(pendingRecoveryFilter(deviceId, now))
+  }
+
   async heartbeat(
     deviceId: string,
     input: HeartbeatInputDTO,
@@ -1981,7 +2044,7 @@ const updatedSms = await this.smsModel.findByIdAndUpdate(
       fcmTokenUpdated,
       lastHeartbeat: now,
       name: updatedDevice?.name,
-      pendingCount: 0,
+      pendingCount: await this.countPendingMessages(deviceId, now),
       config: deviceConfigFor(updatedDevice),
     }
   }

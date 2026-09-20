@@ -692,6 +692,25 @@ export class GatewayController {
   }
 
   @ApiOperation({
+    summary: 'Claim messages a push may have missed',
+    description:
+      'Called by the textbee app when a heartbeat reports pending messages. Returns outbound messages still waiting after 30 minutes, at most 25, and marks each as dispatched again. Not more than once per 5 minutes per device.',
+  })
+  @ApiParam(DEVICE_ID_PARAM)
+  @ApiResponse({ status: 200, description: 'Messages for the app to send.' })
+  @ApiResponse(INVALID_DEVICE_ID_RESPONSE)
+  @ApiResponse(UNAUTHORIZED_RESPONSE)
+  @ApiResponse(DEVICE_NOT_FOUND_RESPONSE)
+  @ApiResponse({ status: 403, description: 'The app version is too old to recover messages.' })
+  @ApiResponse({ status: 429, description: 'Polled again within the cooldown.' })
+  @UseGuards(AuthGuard, CanModifyDevice)
+  @Get('/devices/:id/messages/pending')
+  async claimPendingMessages(@Param('id') deviceId: string) {
+    const data = await this.gatewayService.claimPendingMessages(deviceId)
+    return { data }
+  }
+
+  @ApiOperation({
     summary: 'Update the delivery status of an SMS',
     description:
       'Called by the textbee app once the carrier reports the outcome. This is what moves a message from sent to delivered or failed.',

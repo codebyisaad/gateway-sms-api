@@ -270,6 +270,10 @@ export class Device {
   @Prop({ type: SchemaTypes.Mixed })
   configOverrides?: Record<string, unknown>
 
+  // Last time the app asked for messages its push may have missed
+  @Prop({ type: Date })
+  lastPendingPollAt?: Date
+
   // set by { timestamps: true }; declared here for typing only, no @Prop
   createdAt?: Date
   updatedAt?: Date
