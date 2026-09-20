@@ -16,6 +16,10 @@ export class DeviceTombstone {
 
   @Prop({ type: Date, required: true })
   deletedAt: Date
+
+  // The device document as it stood at deletion time.
+  @Prop({ type: SchemaTypes.Mixed })
+  device?: Record<string, any>
 }
 
 export const DeviceTombstoneSchema =

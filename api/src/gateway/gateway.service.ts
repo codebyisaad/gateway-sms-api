@@ -370,7 +370,7 @@ export class GatewayService {
   }
 
   async deleteDevice(deviceId: string): Promise<any> {
-    const device = await this.deviceModel.findById(deviceId)
+    const device = await this.deviceModel.findById(deviceId).lean()
 
     if (!device) {
       throw new HttpException(
@@ -388,6 +388,7 @@ export class GatewayService {
           deviceId: new Types.ObjectId(deviceId),
           userId: device.user,
           deletedAt: new Date(),
+          device,
         },
       },
       { upsert: true },
