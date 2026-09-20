@@ -161,14 +161,18 @@ object HeartbeatHelper {
                 )
                 DeviceConfig.save(context, body.config)
                 Log.d(TAG, "Heartbeat sent successfully")
+                DeviceLog.log(context, "heartbeat_ok", "pending ${body.pendingCount}")
+                UpdateNotifier.maybeNotify(context)
                 if (body.pendingCount > 0) RecoveryPoll.run(context, "heartbeat")
                 true
             } else {
                 Log.e(TAG, "Failed to send heartbeat. Response code: ${response.code()}")
+                DeviceLog.log(context, "heartbeat_failed", "http ${response.code()}")
                 false
             }
         } catch (e: IOException) {
             Log.e(TAG, "Heartbeat API call failed: ${e.message}")
+            DeviceLog.log(context, "heartbeat_failed", "network: ${e.message}")
             false
         } catch (e: Exception) {
             TextbeeUtils.logException(e, "Error collecting device information")

@@ -225,6 +225,19 @@ fun SetupCompleteScreen(
                 style = MaterialTheme.typography.bodySmall
             )
         }
+
+        TextButton(
+            onClick = {
+                context.startActivity(
+                    Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/textbee/textbee?ref=android-star"))
+                )
+            }
+        ) {
+            Text(
+                text = "textbee is open source. Star it on GitHub.",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
     }
     }
 }

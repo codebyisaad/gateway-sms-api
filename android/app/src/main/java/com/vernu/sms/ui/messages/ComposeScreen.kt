@@ -1,5 +1,8 @@
 package com.vernu.sms.ui.messages
 
+import androidx.compose.ui.platform.LocalContext
+import android.net.Uri
+import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -26,6 +29,7 @@ fun ComposeScreen(
     val state by viewModel.state.collectAsState()
     var recipientInput by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
     LaunchedEffect(state.sendSuccess) {
         if (state.sendSuccess) {
@@ -35,8 +39,16 @@ fun ComposeScreen(
     }
 
     LaunchedEffect(state.sendError) {
-        state.sendError?.let {
-            snackbarHostState.showSnackbar(it)
+        state.sendError?.let { message ->
+            val upgradeUrl = state.upgradeUrl
+            val result = snackbarHostState.showSnackbar(
+                message = message,
+                actionLabel = if (upgradeUrl != null) "Upgrade" else null,
+                duration = if (upgradeUrl != null) SnackbarDuration.Long else SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed && upgradeUrl != null) {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(upgradeUrl)))
+            }
             viewModel.clearError()
         }
     }

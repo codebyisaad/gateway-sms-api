@@ -40,6 +40,7 @@ import com.vernu.sms.R
 import com.vernu.sms.dtos.SimInfoDTO
 import com.vernu.sms.dtos.SubscriptionResponse
 import com.vernu.sms.dtos.UserProfile
+import com.vernu.sms.ui.theme.StatusColors
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -179,7 +180,7 @@ private fun DeviceStatusCard(
     onReceiveSmsToggle: (Boolean) -> Unit
 ) {
     val clipboard = LocalClipboardManager.current
-    val statusColor = if (state.isGatewayEnabled) MaterialTheme.colorScheme.primary
+    val statusColor = if (state.isGatewayEnabled) StatusColors.success
                      else MaterialTheme.colorScheme.onSurfaceVariant
     val statusText = if (state.isGatewayEnabled) "Enabled" else "Disabled"
 
@@ -221,13 +222,12 @@ private fun DeviceStatusCard(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                             )
                             IconButton(
-                                onClick = { clipboard.setText(AnnotatedString(state.deviceId)) },
-                                modifier = Modifier.size(20.dp)
+                                onClick = { clipboard.setText(AnnotatedString(state.deviceId)) }
                             ) {
                                 Icon(
                                     Icons.Default.ContentCopy,
                                     contentDescription = "Copy Device ID",
-                                    modifier = Modifier.size(12.dp),
+                                    modifier = Modifier.size(14.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                 )
                             }
@@ -247,7 +247,7 @@ private fun DeviceStatusCard(
                     )
                 }
             }
-            if (!state.isGatewayEnabled) {
+            run {
                 Spacer(modifier = Modifier.height(12.dp))
                 Surface(
                     color = statusColor.copy(alpha = 0.15f),
@@ -474,7 +474,7 @@ private fun SubscriptionCard(
                             OutlinedButton(
                                 onClick = {
                                     context.startActivity(
-                                        Intent(Intent.ACTION_VIEW, Uri.parse("https://textbee.dev/pricing"))
+                                        Intent(Intent.ACTION_VIEW, Uri.parse("https://textbee.dev/pricing?ref=android-dashboard"))
                                     )
                                 }
                             ) {
