@@ -370,7 +370,7 @@ export class GatewayService {
   }
 
   async deleteDevice(deviceId: string): Promise<any> {
-    const device = await this.deviceModel.findById(deviceId)
+    const device = await this.deviceModel.findById(deviceId).lean()
 
     if (!device) {
       throw new HttpException(
@@ -381,19 +381,33 @@ export class GatewayService {
       )
     }
 
-    await this.deviceTombstoneModel.updateOne(
-      { deviceId: new Types.ObjectId(deviceId) },
+    const id = new Types.ObjectId(deviceId)
+    const written = await this.deviceTombstoneModel.updateOne(
+      { deviceId: id },
       {
         $setOnInsert: {
-          deviceId: new Types.ObjectId(deviceId),
+          deviceId: id,
           userId: device.user,
           deletedAt: new Date(),
+          device,
         },
       },
       { upsert: true },
     )
 
-    await this.deviceModel.findByIdAndDelete(deviceId)
+    try {
+      await this.deviceModel.findByIdAndDelete(deviceId)
+    } catch (error) {
+      // The record must not outlive a delete that did not happen, or the
+      // device reads as gone while it is still live. Only a record this call
+      // created is taken back, and only while the device is still there: an
+      // error raised after the delete landed leaves the record alone, since
+      // that is the only copy of the device left.
+      if (written.upsertedCount && (await this.deviceModel.exists({ _id: id }))) {
+        await this.deviceTombstoneModel.deleteOne({ deviceId: id })
+      }
+      throw error
+    }
 
     return { success: true }
   }

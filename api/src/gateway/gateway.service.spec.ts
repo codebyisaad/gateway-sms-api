@@ -47,6 +47,7 @@ describe('GatewayService', () => {
     findById: jest.fn(),
     findByIdAndUpdate: jest.fn(),
     findByIdAndDelete: jest.fn(),
+    exists: jest.fn(),
     updateMany: jest.fn(),
     create: jest.fn(),
     exec: jest.fn(),
@@ -72,6 +73,7 @@ describe('GatewayService', () => {
 
   const mockDeviceTombstoneModel = {
     updateOne: jest.fn(),
+    deleteOne: jest.fn(),
   }
 
   const mockAuthService = {
@@ -780,10 +782,22 @@ describe('GatewayService', () => {
 
   describe('deleteDevice', () => {
     const mockDeviceId = '507f1f77bcf86cd799439011'
-    const mockDevice = { _id: mockDeviceId, model: 'Pixel 6' }
+    const mockUserId = '507f1f77bcf86cd799439012'
+    const mockDevice = {
+      _id: mockDeviceId,
+      user: mockUserId,
+      brand: 'google',
+      model: 'Pixel 6',
+      appVersionName: '2.4.0',
+      sentSMSCount: 42,
+    }
+    const leanFindById = (value: any) =>
+      mockDeviceModel.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue(value),
+      })
 
     it('should tombstone and delete when device exists', async () => {
-      mockDeviceModel.findById.mockResolvedValue(mockDevice)
+      leanFindById(mockDevice)
 
       const result = await service.deleteDevice(mockDeviceId)
 
@@ -793,13 +807,73 @@ describe('GatewayService', () => {
       expect(result).toEqual({ success: true })
     })
 
+    it('should keep the whole device document on the tombstone', async () => {
+      leanFindById(mockDevice)
+
+      await service.deleteDevice(mockDeviceId)
+
+      const [filter, update, options] =
+        mockDeviceTombstoneModel.updateOne.mock.calls[0]
+      expect(filter.deviceId.toString()).toBe(mockDeviceId)
+      expect(update.$setOnInsert.device).toEqual(mockDevice)
+      expect(update.$setOnInsert.userId).toBe(mockUserId)
+      expect(update.$setOnInsert.deletedAt).toBeInstanceOf(Date)
+      expect(options).toEqual({ upsert: true })
+    })
+
+    it('should take back the tombstone when the delete fails', async () => {
+      leanFindById(mockDevice)
+      mockDeviceTombstoneModel.updateOne.mockResolvedValue({ upsertedCount: 1 })
+      mockDeviceModel.exists.mockResolvedValueOnce({ _id: mockDeviceId })
+      mockDeviceModel.findByIdAndDelete.mockRejectedValueOnce(
+        new Error('write failed'),
+      )
+
+      await expect(service.deleteDevice(mockDeviceId)).rejects.toThrow(
+        'write failed',
+      )
+      expect(
+        String(mockDeviceTombstoneModel.deleteOne.mock.calls[0][0].deviceId),
+      ).toBe(mockDeviceId)
+    })
+
+    it('should keep the tombstone when the delete landed before the error', async () => {
+      leanFindById(mockDevice)
+      mockDeviceTombstoneModel.updateOne.mockResolvedValue({ upsertedCount: 1 })
+      mockDeviceModel.findByIdAndDelete.mockRejectedValueOnce(
+        new Error('write failed'),
+      )
+      // The device is gone, so the tombstone is the only copy left.
+      mockDeviceModel.exists.mockResolvedValueOnce(null)
+
+      await expect(service.deleteDevice(mockDeviceId)).rejects.toThrow(
+        'write failed',
+      )
+      expect(mockDeviceTombstoneModel.deleteOne).not.toHaveBeenCalled()
+    })
+
+    it('should keep an earlier tombstone when a retry fails', async () => {
+      leanFindById(mockDevice)
+      // Matched, not inserted: the tombstone predates this call.
+      mockDeviceTombstoneModel.updateOne.mockResolvedValue({ upsertedCount: 0 })
+      mockDeviceModel.findByIdAndDelete.mockRejectedValueOnce(
+        new Error('write failed'),
+      )
+
+      await expect(service.deleteDevice(mockDeviceId)).rejects.toThrow(
+        'write failed',
+      )
+      expect(mockDeviceTombstoneModel.deleteOne).not.toHaveBeenCalled()
+    })
+
     it('should throw an error if device does not exist', async () => {
-      mockDeviceModel.findById.mockResolvedValue(null)
+      leanFindById(null)
 
       await expect(service.deleteDevice(mockDeviceId)).rejects.toThrow(
         HttpException,
       )
       expect(mockDeviceModel.findById).toHaveBeenCalledWith(mockDeviceId)
+      expect(mockDeviceTombstoneModel.updateOne).not.toHaveBeenCalled()
     })
   })
 

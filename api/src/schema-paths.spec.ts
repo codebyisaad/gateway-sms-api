@@ -4,6 +4,7 @@ import { DeviceTombstoneSchema } from './gateway/schemas/device-tombstone.schema
 import { SMSSchema } from './gateway/schemas/sms.schema'
 import { SMSBatchSchema } from './gateway/schemas/sms-batch.schema'
 import { ApiKeySchema } from './auth/schemas/api-key.schema'
+import { ApiKeyTombstoneSchema } from './auth/schemas/api-key-tombstone.schema'
 import { AccessFootprintSchema } from './auth/schemas/access-footprint.schema'
 import { PasswordResetSchema } from './auth/schemas/password-reset.schema'
 import { EmailVerificationSchema } from './auth/schemas/email-verification.schema'
@@ -23,6 +24,7 @@ const REF_PATHS: Array<[string, Schema, string[]]> = [
   ['SMS', SMSSchema, ['user', 'device', 'smsBatch']],
   ['SMSBatch', SMSBatchSchema, ['user', 'device']],
   ['ApiKey', ApiKeySchema, ['user']],
+  ['ApiKeyTombstone', ApiKeyTombstoneSchema, ['apiKeyId', 'userId']],
   ['AccessFootprint', AccessFootprintSchema, ['apiKey', 'user']],
   ['PasswordReset', PasswordResetSchema, ['user']],
   ['EmailVerification', EmailVerificationSchema, ['user']],

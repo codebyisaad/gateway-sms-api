@@ -8,7 +8,11 @@ import { createHash, randomInt } from 'crypto'
 import { v4 as uuidv4 } from 'uuid'
 import { InjectModel } from '@nestjs/mongoose'
 import { ApiKey, ApiKeyDocument } from './schemas/api-key.schema'
-import { Model } from 'mongoose'
+import {
+  ApiKeyTombstone,
+  ApiKeyTombstoneDocument,
+} from './schemas/api-key-tombstone.schema'
+import { Model, Types } from 'mongoose'
 import { User, UserDocument } from '../users/schemas/user.schema'
 import axios from 'axios'
 import {
@@ -46,6 +50,8 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     @InjectModel(ApiKey.name) private apiKeyModel: Model<ApiKeyDocument>,
+    @InjectModel(ApiKeyTombstone.name)
+    private apiKeyTombstoneModel: Model<ApiKeyTombstoneDocument>,
     @InjectModel(PasswordReset.name)
     private passwordResetModel: Model<PasswordResetDocument>,
     private accessFootprintService: AccessFootprintService,
@@ -615,7 +621,12 @@ export class AuthService {
   }
 
   async deleteApiKey(apiKeyId: string) {
-    const apiKey = await this.apiKeyModel.findOne({ _id: apiKeyId })
+    // Cast first: the id comes from the route, so it reaches the query as an
+    // ObjectId or not at all.
+    const id = Types.ObjectId.isValid(apiKeyId)
+      ? new Types.ObjectId(apiKeyId)
+      : null
+    const apiKey = id ? await this.apiKeyModel.findOne({ _id: id }).lean() : null
     if (!apiKey) {
       throw new HttpException(
         {
@@ -631,7 +642,32 @@ export class AuthService {
       )
     }
 
-    await this.apiKeyModel.deleteOne({ _id: apiKeyId })
+    const written = await this.apiKeyTombstoneModel.updateOne(
+      { apiKeyId: id },
+      {
+        $setOnInsert: {
+          apiKeyId: id,
+          userId: apiKey.user,
+          deletedAt: new Date(),
+          apiKey,
+        },
+      },
+      { upsert: true },
+    )
+
+    try {
+      await this.apiKeyModel.deleteOne({ _id: id })
+    } catch (error) {
+      // The record must not outlive a delete that did not happen, or the key
+      // reads as gone while it still exists. Only a record this call created
+      // is taken back, and only while the key is still there: an error raised
+      // after the delete landed leaves the record alone, since that is the
+      // only copy of the key left.
+      if (written.upsertedCount && (await this.apiKeyModel.exists({ _id: id }))) {
+        await this.apiKeyTombstoneModel.deleteOne({ apiKeyId: id })
+      }
+      throw error
+    }
   }
 
   async revokeApiKey(apiKeyId: string) {
