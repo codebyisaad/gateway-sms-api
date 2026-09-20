@@ -60,7 +60,9 @@ object HeartbeatHelper {
             if (batteryStatus != null) {
                 val level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
                 val scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-                heartbeatInput.batteryPercentage = ((level / scale.toFloat()) * 100).toInt()
+                if (level >= 0 && scale > 0) {
+                    heartbeatInput.batteryPercentage = level * 100 / scale
+                }
                 val status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
                 heartbeatInput.isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
                         status == BatteryManager.BATTERY_STATUS_FULL
@@ -86,8 +88,8 @@ object HeartbeatHelper {
             heartbeatInput.osVersion = Build.VERSION.RELEASE
             heartbeatInput.osApiLevel = Build.VERSION.SDK_INT
 
-            // Device uptime
-            heartbeatInput.deviceUptimeMillis = SystemClock.uptimeMillis()
+            // Device uptime, including time spent in deep sleep
+            heartbeatInput.deviceUptimeMillis = SystemClock.elapsedRealtime()
 
             // Memory
             val runtime = Runtime.getRuntime()
@@ -127,6 +129,15 @@ object HeartbeatHelper {
                 Log.d(TAG, "Could not read power state: ${e.message}")
             }
 
+            // Permissions and app settings
+            val health = DeliveryHealth.evaluate(context)
+            heartbeatInput.hasSendSmsPermission = health.hasSendSmsPermission
+            heartbeatInput.hasReceiveSmsPermission = health.hasReceiveSmsPermission
+            heartbeatInput.hasReadPhoneStatePermission = health.hasReadPhoneStatePermission
+            heartbeatInput.hasPostNotificationsPermission = health.hasPostNotificationsPermission
+            heartbeatInput.stickyNotificationEnabled = health.stickyNotificationEnabled
+            heartbeatInput.usingLegacyUi = health.usingLegacyUi
+
             // SIM info
             heartbeatInput.simInfo = SimInfoCollectionDTO().apply {
                 lastUpdated = System.currentTimeMillis()
@@ -148,6 +159,7 @@ object HeartbeatHelper {
                     context, AppConstants.SHARED_PREFS_LAST_HEARTBEAT_MS_KEY,
                     System.currentTimeMillis().toString()
                 )
+                DeviceConfig.save(context, body.config)
                 Log.d(TAG, "Heartbeat sent successfully")
                 true
             } else {
@@ -158,7 +170,7 @@ object HeartbeatHelper {
             Log.e(TAG, "Heartbeat API call failed: ${e.message}")
             false
         } catch (e: Exception) {
-            Log.e(TAG, "Error collecting device information: ${e.message}")
+            TextbeeUtils.logException(e, "Error collecting device information")
             false
         }
     }

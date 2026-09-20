@@ -22,5 +22,11 @@ class HeartbeatInputDTO {
     var isIgnoringBatteryOptimizations: Boolean? = null
     var isDeviceIdleMode: Boolean? = null
     var isPowerSaveMode: Boolean? = null
+    var hasSendSmsPermission: Boolean? = null
+    var hasReceiveSmsPermission: Boolean? = null
+    var hasReadPhoneStatePermission: Boolean? = null
+    var hasPostNotificationsPermission: Boolean? = null
+    var stickyNotificationEnabled: Boolean? = null
+    var usingLegacyUi: Boolean? = null
     var simInfo: SimInfoCollectionDTO? = null
 }

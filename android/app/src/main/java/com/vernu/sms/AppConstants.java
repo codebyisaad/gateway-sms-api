@@ -34,4 +34,11 @@ public class AppConstants {
     public static final int DEFAULT_SMS_SEND_DELAY_SECONDS = 5;
     public static final String SHARED_PREFS_USE_NEW_UI_KEY = "USE_NEW_UI";
     public static final String SHARED_PREFS_LAST_HEARTBEAT_MS_KEY = "LAST_HEARTBEAT_MS";
+
+    // Settings the server returns on every heartbeat
+    public static final String SHARED_PREFS_CONFIG_SEND_SCHEDULER_V2_KEY = "CONFIG_SEND_SCHEDULER_V2_ENABLED";
+    public static final String SHARED_PREFS_CONFIG_RECOVERY_POLL_KEY = "CONFIG_RECOVERY_POLL_ENABLED";
+    public static final String SHARED_PREFS_CONFIG_UPDATE_NOTIFICATIONS_KEY = "CONFIG_UPDATE_NOTIFICATIONS_ENABLED";
+    public static final String SHARED_PREFS_CONFIG_LATEST_VERSION_CODE_KEY = "CONFIG_LATEST_VERSION_CODE";
+    public static final String SHARED_PREFS_CONFIG_LATEST_VERSION_NAME_KEY = "CONFIG_LATEST_VERSION_NAME";
 }
