@@ -47,6 +47,7 @@ describe('GatewayService', () => {
     findById: jest.fn(),
     findByIdAndUpdate: jest.fn(),
     findByIdAndDelete: jest.fn(),
+    exists: jest.fn(),
     updateMany: jest.fn(),
     create: jest.fn(),
     exec: jest.fn(),
@@ -823,6 +824,7 @@ describe('GatewayService', () => {
     it('should take back the tombstone when the delete fails', async () => {
       leanFindById(mockDevice)
       mockDeviceTombstoneModel.updateOne.mockResolvedValue({ upsertedCount: 1 })
+      mockDeviceModel.exists.mockResolvedValueOnce({ _id: mockDeviceId })
       mockDeviceModel.findByIdAndDelete.mockRejectedValueOnce(
         new Error('write failed'),
       )
@@ -833,6 +835,21 @@ describe('GatewayService', () => {
       expect(
         String(mockDeviceTombstoneModel.deleteOne.mock.calls[0][0].deviceId),
       ).toBe(mockDeviceId)
+    })
+
+    it('should keep the tombstone when the delete landed before the error', async () => {
+      leanFindById(mockDevice)
+      mockDeviceTombstoneModel.updateOne.mockResolvedValue({ upsertedCount: 1 })
+      mockDeviceModel.findByIdAndDelete.mockRejectedValueOnce(
+        new Error('write failed'),
+      )
+      // The device is gone, so the tombstone is the only copy left.
+      mockDeviceModel.exists.mockResolvedValueOnce(null)
+
+      await expect(service.deleteDevice(mockDeviceId)).rejects.toThrow(
+        'write failed',
+      )
+      expect(mockDeviceTombstoneModel.deleteOne).not.toHaveBeenCalled()
     })
 
     it('should keep an earlier tombstone when a retry fails', async () => {

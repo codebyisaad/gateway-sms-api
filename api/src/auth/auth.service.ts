@@ -660,8 +660,10 @@ export class AuthService {
     } catch (error) {
       // The record must not outlive a delete that did not happen, or the key
       // reads as gone while it still exists. Only a record this call created
-      // is taken back.
-      if (written.upsertedCount) {
+      // is taken back, and only while the key is still there: an error raised
+      // after the delete landed leaves the record alone, since that is the
+      // only copy of the key left.
+      if (written.upsertedCount && (await this.apiKeyModel.exists({ _id: id }))) {
         await this.apiKeyTombstoneModel.deleteOne({ apiKeyId: id })
       }
       throw error

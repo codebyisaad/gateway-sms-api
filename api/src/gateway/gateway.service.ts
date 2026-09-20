@@ -400,8 +400,10 @@ export class GatewayService {
     } catch (error) {
       // The record must not outlive a delete that did not happen, or the
       // device reads as gone while it is still live. Only a record this call
-      // created is taken back.
-      if (written.upsertedCount) {
+      // created is taken back, and only while the device is still there: an
+      // error raised after the delete landed leaves the record alone, since
+      // that is the only copy of the device left.
+      if (written.upsertedCount && (await this.deviceModel.exists({ _id: id }))) {
         await this.deviceTombstoneModel.deleteOne({ deviceId: id })
       }
       throw error
