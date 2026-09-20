@@ -1326,6 +1326,25 @@ describe('GatewayService', () => {
       expect(result).toEqual(mockSms)
     })
 
+    it('stores the app version that reported the message', async () => {
+      mockDeviceModel.findById.mockResolvedValue({
+        ...mockDevice,
+        appVersionInfo: { versionCode: 18, versionName: '2.8.0' },
+      })
+
+      await service.receiveSMS(
+        mockDeviceId,
+        mockReceivedSmsData,
+        'textbee-android/2.8.0',
+      )
+
+      expect(mockSmsModel.create.mock.calls[0][0].metadata).toEqual({
+        appVersionCode: 18,
+        appVersionName: '2.8.0',
+        client: 'textbee-android/2.8.0',
+      })
+    })
+
     it('should throw error if device does not exist', async () => {
       mockDeviceModel.findById.mockResolvedValue(null)
 
@@ -1809,6 +1828,34 @@ describe('GatewayService', () => {
         const filter = mockSmsBatchModel.findOne.mock.calls[0][0]
         expect(filter.device.toString()).toBe(OWN_DEVICE)
         expect(mockSmsBatchModel.findByIdAndUpdate).not.toHaveBeenCalled()
+      })
+
+      it('records the app version behind the status report', async () => {
+        mockDeviceModel.findById.mockResolvedValue({
+          _id: OWN_DEVICE,
+          user: 'user_1',
+          appVersionCode: 17,
+          appVersionName: '2.7.0',
+        })
+        mockSmsModel.findById.mockResolvedValue({
+          _id: 'own_sms',
+          device: OWN_DEVICE,
+          status: 'pending',
+        })
+        mockSmsModel.findByIdAndUpdate.mockResolvedValue({
+          _id: 'own_sms',
+          status: 'sent',
+        })
+
+        await service.updateSMSStatus(OWN_DEVICE, {
+          smsId: 'own_sms',
+          status: 'sent',
+        } as any)
+
+        const update = mockSmsModel.findByIdAndUpdate.mock.calls[0][1]
+        expect(update.$set['metadata.appVersionCode']).toBe(17)
+        expect(update.$set['metadata.appVersionName']).toBe('2.7.0')
+        expect(update.$set['metadata.client']).toBeUndefined()
       })
     })
   })

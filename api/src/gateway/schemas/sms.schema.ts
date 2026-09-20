@@ -85,8 +85,8 @@ export class SMS {
   @Prop({ type: Number, required: false })
   simSubscriptionId?: number
 
-  // misc metadata for debugging
-  @Prop({ type: Object })
+  // misc metadata for debugging, not part of the public message shape
+  @Prop({ type: Object, select: false })
   metadata: Record<string, any>
 
   // received while the account was over its plan limit

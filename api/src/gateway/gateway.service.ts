@@ -35,6 +35,7 @@ import {
   receivedSmsIgnoreReason,
   resolveReceivedAt,
 } from './received-sms-input'
+import { appVersionMetadata } from './app-version-metadata'
 import { toDirection, toStoredType } from './message-direction'
 import { ParsedMessageQuery } from './message-query'
 import { smsAndroidConfig } from './fcm-push-options'
@@ -1094,7 +1095,11 @@ export class GatewayService {
     return response
   }
 
-  async receiveSMS(deviceId: string, dto: ReceivedSMSDTO): Promise<any> {
+  async receiveSMS(
+    deviceId: string,
+    dto: ReceivedSMSDTO,
+    sdkClient?: string,
+  ): Promise<any> {
     const device = await this.deviceModel.findById(deviceId)
 
     if (!device) {
@@ -1173,6 +1178,7 @@ export class GatewayService {
       receivedAt,
       ...lateArrivalTimestamps(receivedAt, device.createdAt),
       ...(overLimit && { overLimit: true }),
+      metadata: appVersionMetadata(device, sdkClient),
     })
 
     this.deviceModel
@@ -1484,7 +1490,11 @@ export class GatewayService {
     return messages.map((m) => ({ ...m, direction: toDirection(m.type) }))
   }
 
-  async updateSMSStatus(deviceId: string, dto: UpdateSMSStatusDTO): Promise<any> {
+  async updateSMSStatus(
+    deviceId: string,
+    dto: UpdateSMSStatusDTO,
+    sdkClient?: string,
+  ): Promise<any> {
 
     const device = await this.deviceModel.findById(deviceId);
     
@@ -1527,6 +1537,13 @@ export class GatewayService {
     const updateData: any = {
       status: normalizedStatus, // Store normalized status
     };
+
+    // Dotted paths so other metadata keys survive.
+    for (const [key, value] of Object.entries(
+      appVersionMetadata(device, sdkClient),
+    )) {
+      updateData[`metadata.${key}`] = value;
+    }
     
     // Update timestamps based on status
     if (normalizedStatus === 'sent' && dto.sentAtInMillis) {
