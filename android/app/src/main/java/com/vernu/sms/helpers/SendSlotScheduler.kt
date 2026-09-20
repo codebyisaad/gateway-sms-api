@@ -20,26 +20,31 @@ object SendSlotScheduler {
         return Slot(initialDelayMs = start - nowMs, nextSlotMs = start + gapMs)
     }
 
+    // Two independent timelines: one spaces the jobs when they are queued,
+    // the other re-checks right before the radio call, because WorkManager
+    // may run several due jobs together after the phone wakes up.
+    class Keys(val slotKey: String, val lastReservedKey: String)
+    val QUEUE = Keys(
+        AppConstants.SHARED_PREFS_NEXT_SEND_SLOT_MS_KEY,
+        AppConstants.SHARED_PREFS_LAST_SEND_RESERVED_AT_MS_KEY,
+    )
+    val EXECUTION = Keys(
+        AppConstants.SHARED_PREFS_NEXT_SEND_EXEC_SLOT_MS_KEY,
+        AppConstants.SHARED_PREFS_LAST_SEND_EXEC_RESERVED_AT_MS_KEY,
+    )
+
     private val lock = Any()
 
-    fun reserve(context: Context, gapMs: Long): Long = synchronized(lock) {
+    fun reserve(context: Context, gapMs: Long, keys: Keys = QUEUE): Long = synchronized(lock) {
         val now = System.currentTimeMillis()
         val slot = next(
-            SharedPreferenceHelper.getSharedPreferenceLong(
-                context, AppConstants.SHARED_PREFS_NEXT_SEND_SLOT_MS_KEY, 0L
-            ),
-            SharedPreferenceHelper.getSharedPreferenceLong(
-                context, AppConstants.SHARED_PREFS_LAST_SEND_RESERVED_AT_MS_KEY, 0L
-            ),
+            SharedPreferenceHelper.getSharedPreferenceLong(context, keys.slotKey, 0L),
+            SharedPreferenceHelper.getSharedPreferenceLong(context, keys.lastReservedKey, 0L),
             now,
             gapMs,
         )
-        SharedPreferenceHelper.setSharedPreferenceLong(
-            context, AppConstants.SHARED_PREFS_NEXT_SEND_SLOT_MS_KEY, slot.nextSlotMs
-        )
-        SharedPreferenceHelper.setSharedPreferenceLong(
-            context, AppConstants.SHARED_PREFS_LAST_SEND_RESERVED_AT_MS_KEY, now
-        )
+        SharedPreferenceHelper.setSharedPreferenceLong(context, keys.slotKey, slot.nextSlotMs)
+        SharedPreferenceHelper.setSharedPreferenceLong(context, keys.lastReservedKey, now)
         slot.initialDelayMs
     }
 }

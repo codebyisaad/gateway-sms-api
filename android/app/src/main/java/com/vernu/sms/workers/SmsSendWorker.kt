@@ -26,6 +26,8 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
         private const val QUEUE_NAME = "sms_send_queue"
         private const val FOREGROUND_CHANNEL_ID = "sms_sending"
         private const val FOREGROUND_NOTIFICATION_ID = 7391
+        // Longest a batched job waits in place to keep the gap before sending
+        private const val MAX_EXECUTION_WAIT_MS = 120_000L
 
         const val KEY_PHONE = "phone"
         const val KEY_MESSAGE = "message"
@@ -72,6 +74,13 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
         // One job per message. The scheduler spaces them with initial delays,
         // and a job due now runs expedited so it is not held back by battery saving.
         private fun enqueuePaced(context: Context, inputData: Data, smsId: String?, phone: String) {
+            val uniqueName = "sms_send_${smsId}_${phone.hashCode()}"
+            // A duplicate push must not reserve a slot that KEEP will then discard
+            if (isQueued(context, uniqueName)) {
+                Log.d(TAG, "SMS already queued, skipping - ID: $smsId")
+                return
+            }
+
             val gapMs = configuredDelaySeconds(context) * 1000L
             val initialDelayMs = SendSlotScheduler.reserve(context, gapMs)
 
@@ -84,10 +93,17 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
             }
 
             WorkManager.getInstance(context).enqueueUniqueWork(
-                "sms_send_${smsId}_${phone.hashCode()}",
+                uniqueName,
                 ExistingWorkPolicy.KEEP,
                 builder.build()
             )
+        }
+
+        private fun isQueued(context: Context, uniqueName: String): Boolean = try {
+            WorkManager.getInstance(context).getWorkInfosForUniqueWork(uniqueName).get()
+                .any { !it.state.isFinished }
+        } catch (e: Exception) {
+            false
         }
 
         // The path every release before 2.9.0 used: a single chain that sleeps
@@ -130,6 +146,21 @@ class SmsSendWorker(context: Context, workerParams: WorkerParameters) : Worker(c
         }
 
         val resolvedSim = resolveSim(context, simSubscriptionId)
+
+        // Jobs due at different times can still run together after the phone
+        // wakes, so the gap is enforced once more right before the radio call
+        if (!legacy) {
+            val gapMs = configuredDelaySeconds(context) * 1000L
+            val wait = SendSlotScheduler.reserve(context, gapMs, SendSlotScheduler.EXECUTION)
+                .coerceAtMost(MAX_EXECUTION_WAIT_MS)
+            if (wait > 0) {
+                try {
+                    Thread.sleep(wait)
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                }
+            }
+        }
 
         // Stamped here, so the gap to sentAt is radio time and the gap from
         // pushReceivedAt is time this message waited in the worker queue
