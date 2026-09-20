@@ -34,10 +34,12 @@ class SMSStatusUpdateWorker(context: Context, workerParams: WorkerParameters) : 
                 .setInputData(inputData)
                 .build()
 
-            val uniqueWorkName = "sms_status_${smsDTO.status}_${System.currentTimeMillis()}"
+            // One upload per (message, status). A second report of the same
+            // status is redundant, and REPLACE on a timestamp name cancelled
+            // uploads that landed in the same millisecond.
+            val uniqueWorkName = "sms_status_${smsDTO.smsId ?: System.currentTimeMillis()}_${smsDTO.status}"
             WorkManager.getInstance(context)
-                .beginUniqueWork(uniqueWorkName, ExistingWorkPolicy.REPLACE, workRequest)
-                .enqueue()
+                .enqueueUniqueWork(uniqueWorkName, ExistingWorkPolicy.KEEP, workRequest)
 
             Log.d(TAG, "Work enqueued for SMS status update - ID: ${smsDTO.smsId}")
         }
