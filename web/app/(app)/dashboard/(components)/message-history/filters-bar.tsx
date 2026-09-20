@@ -11,9 +11,10 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ChevronDown, RefreshCw, Search, Smartphone, Timer, X } from 'lucide-react'
-import { formatDeviceName, cn } from '@/lib/utils'
+import { RefreshCw, Search, Timer, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { Device } from '@/lib/api'
+import DeviceFilter from './device-filter'
 
 const AUTO_REFRESH_INTERVALS = [
   { value: 0, label: 'Off' },
@@ -59,31 +60,6 @@ export default function FiltersBar({
   onAutoRefreshIntervalChange,
 }: FiltersBarProps) {
   const autoRefreshOn = autoRefreshInterval > 0
-  const allSelected = selectedDeviceIds.length === 0
-
-  const deviceLabel = allSelected
-    ? 'All devices'
-    : selectedDeviceIds.length === 1
-      ? formatDeviceName(
-          devices.find((d) => d._id === selectedDeviceIds[0]) ?? devices[0]
-        )
-      : `${selectedDeviceIds.length} devices`
-
-  // Checked always means included: with the all-devices scope active every
-  // device renders checked, and unchecking one narrows to the rest.
-  const isDeviceSelected = (deviceId: string) =>
-    allSelected || selectedDeviceIds.includes(deviceId)
-
-  const toggleDevice = (deviceId: string, checked: boolean) => {
-    const next = allSelected
-      ? devices.filter((d) => d._id !== deviceId).map((d) => d._id)
-      : checked
-        ? [...selectedDeviceIds, deviceId]
-        : selectedDeviceIds.filter((id) => id !== deviceId)
-    // Selecting every device manually is the same thing as all devices;
-    // collapse to the empty selection so new devices stay included.
-    onDeviceSelectionChange(next.length === devices.length ? [] : next)
-  }
 
   return (
     <div className='space-y-3'>
@@ -116,50 +92,11 @@ export default function FiltersBar({
         </div>
 
         <div className='flex items-center gap-2'>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type='button'
-                variant='outline'
-                id='history-device'
-                className='h-9 w-full justify-between font-normal sm:w-64'
-                aria-label={`Devices: ${deviceLabel}`}
-              >
-                <span className='flex min-w-0 items-center gap-2'>
-                  <Smartphone className='h-4 w-4 shrink-0 text-muted-foreground' />
-                  <span className='truncate'>{deviceLabel}</span>
-                </span>
-                <ChevronDown className='h-4 w-4 shrink-0 text-muted-foreground' />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align='start' className='w-64'>
-              <DropdownMenuLabel>Devices</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem
-                checked={allSelected}
-                onCheckedChange={() => onDeviceSelectionChange([])}
-              >
-                All devices
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuSeparator />
-              {devices.map((device) => (
-                <DropdownMenuCheckboxItem
-                  key={device._id}
-                  checked={isDeviceSelected(device._id)}
-                  onCheckedChange={(checked) =>
-                    toggleDevice(device._id, checked === true)
-                  }
-                >
-                  {formatDeviceName(device)}
-                  {!device.enabled
-                    ? ' (disabled)'
-                    : device.isDefault
-                      ? ' (default)'
-                      : ''}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <DeviceFilter
+            devices={devices}
+            value={selectedDeviceIds}
+            onChange={onDeviceSelectionChange}
+          />
 
           <Button
             type='button'

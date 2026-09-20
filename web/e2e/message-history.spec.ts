@@ -346,4 +346,115 @@ test.describe('message history (mocked API, no real backend)', () => {
       .poll(() => requested.some((url) => url.includes('direction=received')))
       .toBe(true)
   })
+
+  // The old dropdown opened with every device checked, so this click widened
+  // the scope instead of narrowing it, and dismissed the list on the way out.
+  test('picking a device narrows the request and leaves the list open', async ({
+    page,
+    context,
+  }) => {
+    await authenticate(context)
+    await mockApi(page)
+
+    const requested: string[] = []
+    await page.route('**/api/v1/gateway/messages*', (route) => {
+      requested.push(route.request().url())
+      return route.fallback()
+    })
+
+    await page.goto('/dashboard/messaging/history')
+    await page.getByRole('button', { name: /^Devices:/ }).click()
+    await page.getByRole('option', { name: /Google Pixel 8/ }).click()
+
+    await expect
+      .poll(() => requested.some((url) => url.includes('deviceIds=device_1')), {
+        message: 'a request scoped to the picked device should be issued',
+      })
+      .toBe(true)
+
+    await expect(
+      page.getByRole('option', { name: /Samsung Galaxy S23/ })
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Devices:/ })).toContainText(
+      'Pixel 8'
+    )
+  })
+
+  test('filters survive a refresh through the URL', async ({
+    page,
+    context,
+  }) => {
+    await authenticate(context)
+    await mockApi(page)
+
+    await page.goto('/dashboard/messaging/history')
+    await page.getByRole('button', { name: /^Devices:/ }).click()
+    await page.getByRole('option', { name: /Google Pixel 8/ }).click()
+    await page.keyboard.press('Escape')
+    await page.getByRole('tab', { name: 'Received' }).click()
+    await page.getByLabel('Search messages').fill('customer')
+
+    await expect(page).toHaveURL(
+      /devices=device_1&direction=received&search=customer/
+    )
+
+    const requested: string[] = []
+    await page.route('**/api/v1/gateway/messages*', (route) => {
+      requested.push(route.request().url())
+      return route.fallback()
+    })
+    await page.reload()
+
+    await expect(page.getByRole('button', { name: /^Devices:/ })).toContainText(
+      'Pixel 8'
+    )
+    await expect(page.getByRole('tab', { name: 'Received' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    )
+    await expect(page.getByLabel('Search messages')).toHaveValue('customer')
+    await expect
+      .poll(() =>
+        requested.some(
+          (url) =>
+            url.includes('deviceIds=device_1') &&
+            url.includes('direction=received') &&
+            url.includes('search=customer')
+        )
+      )
+      .toBe(true)
+  })
+
+  // The debounce used to reset the page on mount, which silently dropped the
+  // page a shared link asked for 300ms after it loaded.
+  test('a shared link applies its filters on the first request', async ({
+    page,
+    context,
+  }) => {
+    await authenticate(context)
+    await mockApi(page)
+
+    const requested: string[] = []
+    await page.route('**/api/v1/gateway/messages*', (route) => {
+      requested.push(route.request().url())
+      return route.fallback()
+    })
+
+    await page.goto(
+      '/dashboard/messaging/history?devices=device_2&direction=sent&search=hello&page=2'
+    )
+    await expect
+      .poll(() => requested.length, { message: 'a request should be issued' })
+      .toBeGreaterThan(0)
+
+    expect(requested[0]).toContain('deviceIds=device_2')
+    expect(requested[0]).toContain('direction=sent')
+    expect(requested[0]).toContain('search=hello')
+    expect(requested[0]).toContain('page=2')
+
+    // Give the debounce time to fire before asserting it did not reset.
+    await page.waitForTimeout(600)
+    expect(requested.some((url) => url.includes('page=1'))).toBe(false)
+    await expect(page).toHaveURL(/page=2/)
+  })
 })
