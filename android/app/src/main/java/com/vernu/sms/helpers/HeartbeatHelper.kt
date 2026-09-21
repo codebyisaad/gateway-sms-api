@@ -175,7 +175,10 @@ object HeartbeatHelper {
             DeviceLog.log(context, "heartbeat_failed", "network: ${e.message}")
             false
         } catch (e: Exception) {
-            TextbeeUtils.logException(e, "Error collecting device information")
+            // Covers a reply the app cannot parse, which reaches the server but
+            // leaves the device without its config, so it must not stay silent.
+            DeviceLog.log(context, "heartbeat_failed", "reply not understood: ${e.javaClass.simpleName}")
+            TextbeeUtils.logException(e, "Heartbeat failed")
             false
         }
     }
