@@ -30,6 +30,8 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -182,12 +184,6 @@ private fun DeviceStatusCard(
     onReceiveSmsToggle: (Boolean) -> Unit
 ) {
     val clipboard = LocalClipboardManager.current
-    val statusColor = if (state.isGatewayEnabled) StatusColors.success
-                     else MaterialTheme.colorScheme.onSurfaceVariant
-    val statusText = if (state.isGatewayEnabled) "Gateway enabled" else "Gateway disabled"
-    // Says nothing about receiving, so it cannot be read against the row below
-    val statusDetail = if (state.isGatewayEnabled) "This phone is connected and ready."
-                       else "This phone is not handling messages."
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -237,44 +233,12 @@ private fun DeviceStatusCard(
                 }
             }
 
-            // State, colour and the master switch live in one bounded strip, so
-            // the label cannot be read as belonging to the Receive SMS row below.
             Spacer(modifier = Modifier.height(16.dp))
-            Surface(
-                color = statusColor.copy(alpha = 0.12f),
-                shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(start = 14.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(statusColor, CircleShape)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                        Text(
-                            text = statusText,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = statusColor
-                        )
-                        Text(
-                            text = statusDetail,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = state.isGatewayEnabled,
-                        onCheckedChange = onToggle,
-                        enabled = !state.isTogglingGateway
-                    )
-                }
-            }
+            GatewayStatusStrip(
+                enabled = state.isGatewayEnabled,
+                busy = state.isTogglingGateway,
+                onToggle = onToggle
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
             Row(
@@ -297,12 +261,69 @@ private fun DeviceStatusCard(
                 Switch(
                     checked = state.isReceiveSmsEnabled,
                     onCheckedChange = onReceiveSmsToggle,
-                    modifier = Modifier.scale(0.75f)
+                    modifier = Modifier
+                        .scale(0.75f)
+                        .semantics { contentDescription = "Receive SMS" }
                 )
             }
             if (state.availableSims.isNotEmpty()) {
                 SimCardsSection(sims = state.availableSims)
             }
+        }
+    }
+}
+
+/**
+ * The gateway state and the switch that changes it, in one bounded strip. The
+ * bounds are what stop the label from being read against the row below it, and
+ * the copy avoids the word receive for the same reason.
+ */
+@Composable
+private fun GatewayStatusStrip(
+    enabled: Boolean,
+    busy: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    val statusColor = if (enabled) StatusColors.success
+                      else MaterialTheme.colorScheme.onSurfaceVariant
+    val statusText = if (enabled) "Gateway enabled" else "Gateway disabled"
+    val statusDetail = if (enabled) "This phone is connected and ready."
+                       else "This phone is not handling messages."
+
+    Surface(
+        color = statusColor.copy(alpha = 0.12f),
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 14.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(statusColor, CircleShape)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                Text(
+                    text = statusText,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = statusColor
+                )
+                Text(
+                    text = statusDetail,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = enabled,
+                onCheckedChange = onToggle,
+                enabled = !busy,
+                modifier = Modifier.semantics { contentDescription = "Gateway" }
+            )
         }
     }
 }
