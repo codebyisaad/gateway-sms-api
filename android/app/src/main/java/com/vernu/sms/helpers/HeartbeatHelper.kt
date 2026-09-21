@@ -130,7 +130,7 @@ object HeartbeatHelper {
             }
 
             // Permissions and app settings
-            val health = DeliveryHealth.evaluate(context)
+            val health = DeviceHealth.evaluate(context)
             heartbeatInput.hasSendSmsPermission = health.hasSendSmsPermission
             heartbeatInput.hasReceiveSmsPermission = health.hasReceiveSmsPermission
             heartbeatInput.hasReadPhoneStatePermission = health.hasReadPhoneStatePermission

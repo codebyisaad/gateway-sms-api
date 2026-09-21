@@ -2,7 +2,7 @@ package com.vernu.sms.helpers
 
 enum class HealthStatus { GREEN, AMBER, RED }
 
-enum class HealthAction { NONE, GRANT_SMS, GRANT_NOTIFICATIONS, OPEN_BATTERY_SETTINGS, TOGGLE_STICKY, COPY_TIPS }
+enum class HealthAction { NONE, GRANT_SMS, GRANT_NOTIFICATIONS, OPEN_BATTERY_SETTINGS, TOGGLE_STICKY, OPEN_APP_SETTINGS, SEND_HEARTBEAT }
 
 data class HealthRow(
     val id: String,
@@ -15,7 +15,7 @@ data class HealthRow(
 )
 
 data class HealthInputs(
-    val snapshot: DeliveryHealthSnapshot,
+    val snapshot: DeviceHealthSnapshot,
     val ignoringBatteryOptimizations: Boolean?,
     val powerSaveMode: Boolean,
     val deviceIdleMode: Boolean,
@@ -26,8 +26,8 @@ data class HealthInputs(
     val gatewayEnabled: Boolean,
 )
 
-// The checks behind the Delivery health screen. Pure, so each row is testable.
-object DeliveryHealthRows {
+// The checks behind the Device health screen. Pure, so each row is testable.
+object DeviceHealthRows {
     private const val MINUTE = 60_000L
     private const val HOUR = 60 * MINUTE
 
@@ -88,11 +88,11 @@ object DeliveryHealthRows {
         }
 
         rows += sendDelayRow(i.sendDelaySeconds)
-        rows += checkInRow(i.lastHeartbeatMs, i.nowMs, i.gatewayEnabled)
+        rows += heartbeatRow(i.lastHeartbeatMs, i.nowMs, i.gatewayEnabled)
 
         oemTips(i.manufacturer)?.let { (brand, tips) ->
             rows += HealthRow("oem", "Tips for $brand phones", tips, HealthStatus.GREEN,
-                HealthAction.COPY_TIPS, "Copy steps", countsAsIssue = false)
+                HealthAction.OPEN_APP_SETTINGS, "Open app settings", countsAsIssue = false)
         }
         return rows
     }
@@ -112,25 +112,29 @@ object DeliveryHealthRows {
             HealthStatus.GREEN, countsAsIssue = false)
     }
 
-    fun checkInRow(lastHeartbeatMs: Long?, nowMs: Long, gatewayEnabled: Boolean): HealthRow {
+    fun heartbeatRow(lastHeartbeatMs: Long?, nowMs: Long, gatewayEnabled: Boolean): HealthRow {
+        val send = HealthAction.SEND_HEARTBEAT
         if (!gatewayEnabled) {
-            return HealthRow("checkin", "Last check-in", "Gateway is off", HealthStatus.AMBER, countsAsIssue = false)
+            return HealthRow("heartbeat", "Heartbeat", "Gateway is off", HealthStatus.AMBER, countsAsIssue = false)
         }
         if (lastHeartbeatMs == null || lastHeartbeatMs <= 0) {
-            return HealthRow("checkin", "Last check-in", "Never. The phone has not reported to textbee yet.", HealthStatus.RED)
+            return HealthRow("heartbeat", "Heartbeat", "Never. Send one to check the connection.",
+                HealthStatus.RED, send, "Send heartbeat")
         }
         val age = nowMs - lastHeartbeatMs
         if (age < 0) {
-            return HealthRow("checkin", "Last check-in",
-                "The last check-in is in the future, so the phone clock changed. The next check-in clears this.",
-                HealthStatus.AMBER, countsAsIssue = false)
+            return HealthRow("heartbeat", "Heartbeat",
+                "The last one is dated in the future, so the phone clock changed. The next one clears this.",
+                HealthStatus.AMBER, send, "Send heartbeat", countsAsIssue = false)
         }
-        val ago = "Checked in ${formatDuration(age)} ago"
+        val ago = "${formatDuration(age)} ago"
         return when {
-            age < 45 * MINUTE -> HealthRow("checkin", "Last check-in", ago, HealthStatus.GREEN)
-            age < 3 * HOUR -> HealthRow("checkin", "Last check-in", "$ago. Expected every 30 minutes.", HealthStatus.AMBER)
-            else -> HealthRow("checkin", "Last check-in",
-                "$ago. Android or the phone maker is probably stopping the app in the background.", HealthStatus.RED)
+            age < 45 * MINUTE -> HealthRow("heartbeat", "Heartbeat", ago, HealthStatus.GREEN, send, "Send heartbeat")
+            age < 3 * HOUR -> HealthRow("heartbeat", "Heartbeat", "$ago. Expected every 30 minutes.",
+                HealthStatus.AMBER, send, "Send heartbeat")
+            else -> HealthRow("heartbeat", "Heartbeat",
+                "$ago. Android or the phone maker is probably stopping the app in the background.",
+                HealthStatus.RED, send, "Send heartbeat")
         }
     }
 

@@ -17,10 +17,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -33,13 +31,13 @@ import com.vernu.sms.ui.theme.StatusColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DeliveryHealthScreen(
+fun DeviceHealthScreen(
     onNavigateBack: () -> Unit,
-    viewModel: DeliveryHealthViewModel = viewModel()
+    viewModel: DeviceHealthViewModel = viewModel()
 ) {
     val rows by viewModel.rows.collectAsState()
+    val heartbeatSend by viewModel.heartbeatSend.collectAsState()
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
     var permissionDenied by remember { mutableStateOf(false) }
 
@@ -70,7 +68,7 @@ fun DeliveryHealthScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Delivery health", fontWeight = FontWeight.SemiBold) },
+                title = { Text("Device health", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -90,7 +88,7 @@ fun DeliveryHealthScreen(
         ) {
             item {
                 Text(
-                    text = "What can slow down or stop messages on this phone, and what to change.",
+                    text = "What can slow down or stop messages on this phone, in either direction, and what to change.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 4.dp)
@@ -113,12 +111,23 @@ fun DeliveryHealthScreen(
                                 openAppSettings()
                             }
                             HealthAction.TOGGLE_STICKY -> viewModel.setStickyNotification(true)
-                            HealthAction.COPY_TIPS -> clipboard.setText(AnnotatedString(row.detail))
+                            HealthAction.OPEN_APP_SETTINGS -> openAppSettings()
+                            HealthAction.SEND_HEARTBEAT -> viewModel.sendHeartbeatNow()
                             HealthAction.NONE -> Unit
                         }
                     },
-                    actionLabel = if (permissionDenied && (row.action == HealthAction.GRANT_SMS || row.action == HealthAction.GRANT_NOTIFICATIONS))
-                        "Open app settings" else row.actionLabel
+                    actionLabel = when {
+                        permissionDenied && (row.action == HealthAction.GRANT_SMS || row.action == HealthAction.GRANT_NOTIFICATIONS) ->
+                            "Open app settings"
+                        row.action == HealthAction.SEND_HEARTBEAT -> when (heartbeatSend) {
+                            HeartbeatSend.SENDING -> "Sending"
+                            HeartbeatSend.SENT -> "Sent"
+                            HeartbeatSend.FAILED -> "Could not send. Try again"
+                            HeartbeatSend.IDLE -> row.actionLabel
+                        }
+                        else -> row.actionLabel
+                    },
+                    actionEnabled = !(row.action == HealthAction.SEND_HEARTBEAT && heartbeatSend == HeartbeatSend.SENDING)
                 )
             }
         }
@@ -126,7 +135,12 @@ fun DeliveryHealthScreen(
 }
 
 @Composable
-private fun HealthRowCard(row: HealthRow, onAction: () -> Unit, actionLabel: String?) {
+private fun HealthRowCard(
+    row: HealthRow,
+    onAction: () -> Unit,
+    actionLabel: String?,
+    actionEnabled: Boolean = true,
+) {
     val color = when (row.status) {
         HealthStatus.GREEN -> StatusColors.success
         HealthStatus.AMBER -> StatusColors.warning
@@ -155,7 +169,7 @@ private fun HealthRowCard(row: HealthRow, onAction: () -> Unit, actionLabel: Str
             )
             if (row.action != HealthAction.NONE && actionLabel != null) {
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedButton(onClick = onAction) { Text(actionLabel) }
+                OutlinedButton(onClick = onAction, enabled = actionEnabled) { Text(actionLabel) }
             }
         }
     }
