@@ -10,8 +10,10 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
@@ -182,7 +184,10 @@ private fun DeviceStatusCard(
     val clipboard = LocalClipboardManager.current
     val statusColor = if (state.isGatewayEnabled) StatusColors.success
                      else MaterialTheme.colorScheme.onSurfaceVariant
-    val statusText = if (state.isGatewayEnabled) "Enabled" else "Disabled"
+    val statusText = if (state.isGatewayEnabled) "Gateway enabled" else "Gateway disabled"
+    // Says nothing about receiving, so it cannot be read against the row below
+    val statusDetail = if (state.isGatewayEnabled) "This phone is connected and ready."
+                       else "This phone is not handling messages."
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -190,18 +195,14 @@ private fun DeviceStatusCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            run {
                 val hardwareModel = "${Build.BRAND.replaceFirstChar { it.uppercase() }} ${Build.MODEL}"
                 val customName = state.deviceName.trim()
                 val displayName = customName.ifEmpty { hardwareModel }
                 val showModel = customName.isNotEmpty() &&
                                 customName.lowercase() != hardwareModel.lowercase()
 
-                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = displayName,
                         style = MaterialTheme.typography.titleLarge,
@@ -234,35 +235,48 @@ private fun DeviceStatusCard(
                         }
                     }
                 }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            }
+
+            // State, colour and the master switch live in one bounded strip, so
+            // the label cannot be read as belonging to the Receive SMS row below.
+            Spacer(modifier = Modifier.height(16.dp))
+            Surface(
+                color = statusColor.copy(alpha = 0.12f),
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(start = 14.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(statusColor, CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = statusText,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = statusColor
+                        )
+                        Text(
+                            text = statusDetail,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Switch(
                         checked = state.isGatewayEnabled,
                         onCheckedChange = onToggle,
                         enabled = !state.isTogglingGateway
                     )
-                    Text(
-                        text = "Gateway",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
             }
-            run {
-                Spacer(modifier = Modifier.height(12.dp))
-                Surface(
-                    color = statusColor.copy(alpha = 0.15f),
-                    shape = MaterialTheme.shapes.small
-                ) {
-                    Text(
-                        text = statusText,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = statusColor,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
+
+            Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
