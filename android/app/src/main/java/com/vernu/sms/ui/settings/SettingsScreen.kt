@@ -200,7 +200,7 @@ fun SettingsScreen(
 
             SettingsRow(
                 icon = Icons.Default.HealthAndSafety,
-                title = "Delivery health",
+                title = "Device health",
                 subtitle = when (state.healthIssueCount) {
                     0 -> "All checks pass"
                     1 -> "1 item to check"

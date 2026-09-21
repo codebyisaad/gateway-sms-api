@@ -98,7 +98,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
                 smsSendDelaySeconds = smsDelay,
                 preferredSimSubscriptionId = preferredSim,
                 availableSims = sims,
-                healthIssueCount = DeliveryHealthViewModel.issueCount(context)
+                healthIssueCount = DeviceHealthViewModel.issueCount(context)
             )
         }
     }
@@ -118,7 +118,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
                     SharedPreferenceHelper.setSharedPreferenceBoolean(
                         context, AppConstants.SHARED_PREFS_GATEWAY_ENABLED_KEY, enabled
                     )
-                    _state.update { it.copy(isGatewayEnabled = enabled, healthIssueCount = DeliveryHealthViewModel.issueCount(context)) }
+                    _state.update { it.copy(isGatewayEnabled = enabled, healthIssueCount = DeviceHealthViewModel.issueCount(context)) }
                     if (enabled) {
                         TextbeeUtils.startStickyNotificationService(context)
                         com.vernu.sms.helpers.HeartbeatManager.scheduleHeartbeat(context)
@@ -154,7 +154,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
             TextbeeUtils.logException(e, "Sticky notification toggle failed")
             _state.update { it.copy(snackbarMessage = "Could not start notification service") }
         }
-        _state.update { it.copy(isStickyNotificationEnabled = enabled, healthIssueCount = DeliveryHealthViewModel.issueCount(context)) }
+        _state.update { it.copy(isStickyNotificationEnabled = enabled, healthIssueCount = DeviceHealthViewModel.issueCount(context)) }
     }
 
     fun setSmsSendDelay(seconds: Int) {

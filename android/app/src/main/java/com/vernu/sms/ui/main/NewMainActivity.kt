@@ -29,7 +29,7 @@ import com.vernu.sms.ui.dashboard.DashboardScreen
 import com.vernu.sms.ui.messages.ComposeScreen
 import com.vernu.sms.ui.messages.MessagesScreen
 import com.vernu.sms.ui.onboarding.OnboardingActivity
-import com.vernu.sms.ui.settings.DeliveryHealthScreen
+import com.vernu.sms.ui.settings.DeviceHealthScreen
 import com.vernu.sms.ui.settings.SMSFilterScreen
 import com.vernu.sms.ui.settings.SettingsScreen
 import com.vernu.sms.ui.theme.TextbeeTheme
@@ -158,7 +158,7 @@ private fun MainScaffold(
                 SMSFilterScreen(onNavigateBack = { navController.popBackStack() })
             }
             composable("health") {
-                DeliveryHealthScreen(onNavigateBack = { navController.popBackStack() })
+                DeviceHealthScreen(onNavigateBack = { navController.popBackStack() })
             }
         }
     }

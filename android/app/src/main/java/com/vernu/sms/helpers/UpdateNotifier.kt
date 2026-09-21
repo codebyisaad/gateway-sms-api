@@ -33,7 +33,7 @@ object UpdateNotifier {
             context, AppConstants.SHARED_PREFS_LAST_UPDATE_NOTIFIED_VERSION_CODE_KEY, 0
         )
         if (!shouldNotify(DeviceConfig.updateNotificationsEnabled(context), latest, BuildConfig.VERSION_CODE, lastNotified)) return
-        if (!DeliveryHealth.evaluate(context).hasPostNotificationsPermission) return
+        if (!DeviceHealth.evaluate(context).hasPostNotificationsPermission) return
 
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
