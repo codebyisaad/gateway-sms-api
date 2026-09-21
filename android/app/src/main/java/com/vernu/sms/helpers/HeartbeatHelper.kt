@@ -175,7 +175,11 @@ object HeartbeatHelper {
             DeviceLog.log(context, "heartbeat_failed", "network: ${e.message}")
             false
         } catch (e: Exception) {
-            TextbeeUtils.logException(e, "Error collecting device information")
+            // Covers collection, the call and the post-reply work alike, so the
+            // detail names the exception rather than guessing which part failed.
+            // JsonSyntaxException here means the reply itself could not be read.
+            DeviceLog.log(context, "heartbeat_failed", "error: ${e.javaClass.simpleName}")
+            TextbeeUtils.logException(e, "Heartbeat failed")
             false
         }
     }
