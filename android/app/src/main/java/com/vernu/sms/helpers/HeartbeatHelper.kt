@@ -175,9 +175,10 @@ object HeartbeatHelper {
             DeviceLog.log(context, "heartbeat_failed", "network: ${e.message}")
             false
         } catch (e: Exception) {
-            // Covers a reply the app cannot parse, which reaches the server but
-            // leaves the device without its config, so it must not stay silent.
-            DeviceLog.log(context, "heartbeat_failed", "reply not understood: ${e.javaClass.simpleName}")
+            // Covers collection, the call and the post-reply work alike, so the
+            // detail names the exception rather than guessing which part failed.
+            // JsonSyntaxException here means the reply itself could not be read.
+            DeviceLog.log(context, "heartbeat_failed", "error: ${e.javaClass.simpleName}")
             TextbeeUtils.logException(e, "Heartbeat failed")
             false
         }
