@@ -41,7 +41,6 @@ The repository contains every runtime component:
 - [Operations notes](#operations-notes)
 - [Contributing](#contributing)
 - [Security](#security)
-- [License](#license)
 
 ## Features
 
@@ -310,8 +309,7 @@ CI runs the API, web, and Android workflows on every pull request.
 ├── docker-compose.yaml  Reference deployment
 ├── CONTRIBUTING.md
 ├── SECURITY.md
-├── LICENSE              AGPL-3.0
-└── LICENSES/            Third-party notices
+└── CONTRIBUTING.md
 ```
 
 ## Operations notes
@@ -336,6 +334,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Do not open a public issue for a vulnerability. Follow the reporting process in [SECURITY.md](SECURITY.md).
 
-## License
 
-Licensed under the [GNU Affero General Public License v3.0](LICENSE). Third-party notices are in [`LICENSES/`](LICENSES).
