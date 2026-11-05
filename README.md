@@ -285,7 +285,6 @@ cd web && pnpm coverage
 cd web && pnpm test:e2e
 ```
 
-CI runs the API, web, and Android workflows on every pull request.
 
 ## Repository layout
 
