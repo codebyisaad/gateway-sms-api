@@ -205,7 +205,7 @@ export function normalizeReferrer(referrer: string): string {
   return host
 }
 
-// First touch, not last: the channel that introduced someone to textbee is the
+// First touch, not last: the channel that introduced someone to gateway-sms-api is the
 // one that earned the signup, even if they came back through a search later.
 export function normalizeSignupSource(
   attribution?: AttributionInput | null,

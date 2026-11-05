@@ -148,7 +148,7 @@ export class RegisterDeviceInputDTO {
     type: String,
     required: false,
     description:
-      'Firebase Cloud Messaging token. textbee pushes send jobs to this token, so a stale value stops delivery.',
+      'Firebase Cloud Messaging token. gateway-sms-api pushes send jobs to this token, so a stale value stops delivery.',
   })
   fcmToken?: string
 
@@ -234,7 +234,7 @@ export class RegisterDeviceInputDTO {
   @ApiProperty({
     type: String,
     required: false,
-    description: 'textbee app version name.',
+    description: 'gateway-sms-api app version name.',
     example: '1.9.0',
   })
   appVersionName?: string
@@ -242,7 +242,7 @@ export class RegisterDeviceInputDTO {
   @ApiProperty({
     type: Number,
     required: false,
-    description: 'textbee app version code.',
+    description: 'gateway-sms-api app version code.',
     example: 190,
   })
   appVersionCode?: number
@@ -314,7 +314,7 @@ export class SMSData {
     type: Number,
     required: false,
     description:
-      'SIM to send from, as subscriptionId from the device simInfo. Defaults to the device default SIM. Android can assign a new id when a SIM is removed and reinserted or swapped, so read the current id from the SIM Cards section of the textbee app before you hard-code it. An id that matches no active SIM is sent from the preferred SIM set in the textbee app, or the device default SIM.',
+      'SIM to send from, as subscriptionId from the device simInfo. Defaults to the device default SIM. Android can assign a new id when a SIM is removed and reinserted or swapped, so read the current id from the SIM Cards section of the gateway-sms-api app before you hard-code it. An id that matches no active SIM is sent from the preferred SIM set in the gateway-sms-api app, or the device default SIM.',
     example: 1,
   })
   simSubscriptionId?: number
@@ -597,7 +597,7 @@ export class AppVersionInfoDTO {
   @ApiProperty({
     type: String,
     required: false,
-    description: 'textbee app version name.',
+    description: 'gateway-sms-api app version name.',
     example: '1.9.0',
   })
   versionName?: string
@@ -605,7 +605,7 @@ export class AppVersionInfoDTO {
   @ApiProperty({
     type: Number,
     required: false,
-    description: 'textbee app version code.',
+    description: 'gateway-sms-api app version code.',
     example: 190,
   })
   versionCode?: number
@@ -836,7 +836,7 @@ export class DeviceDTO {
   @ApiProperty({
     type: String,
     required: false,
-    description: 'textbee app version name.',
+    description: 'gateway-sms-api app version name.',
     example: '1.9.0',
   })
   appVersionName?: string
@@ -844,7 +844,7 @@ export class DeviceDTO {
   @ApiProperty({
     type: Number,
     required: false,
-    description: 'textbee app version code.',
+    description: 'gateway-sms-api app version code.',
     example: 190,
   })
   appVersionCode?: number
@@ -877,7 +877,7 @@ export class DeviceDTO {
   @ApiProperty({
     type: Boolean,
     description:
-      'Whether incoming messages are forwarded to textbee. Required for received message history and webhooks.',
+      'Whether incoming messages are forwarded to gateway-sms-api. Required for received message history and webhooks.',
   })
   receiveSMSEnabled: boolean
 
@@ -912,7 +912,7 @@ export class DeviceDTO {
   @ApiProperty({
     type: AppVersionInfoDTO,
     required: false,
-    description: 'textbee app version running on the device.',
+    description: 'gateway-sms-api app version running on the device.',
   })
   appVersionInfo?: AppVersionInfoDTO
 
@@ -1450,7 +1450,7 @@ export class UpdateSMSStatusDTO {
     required: false,
     enum: SIM_SELECTIONS,
     description:
-      'Why the device used that SIM. requested_invalid_fallback means the requested simSubscriptionId matched no active SIM, so the device fell back to the preferred SIM set in the textbee app, or the device default SIM.',
+      'Why the device used that SIM. requested_invalid_fallback means the requested simSubscriptionId matched no active SIM, so the device fell back to the preferred SIM set in the gateway-sms-api app, or the device default SIM.',
     example: 'requested',
   })
   simSelection?: string
@@ -1734,7 +1734,7 @@ export class SmsPermissionStatusDTO {
     type: Boolean,
     nullable: true,
     description:
-      'True when your latest outgoing message failed because the textbee app on the phone lacks the SMS permission (error code PERMISSION_DENIED) and the phone has not reported the permission granted since, or when an enabled phone reported the SMS permission off in a heartbeat within the last 7 days. False when neither applies. Null when the account has never sent a message and no phone reports the permission off.',
+      'True when your latest outgoing message failed because the gateway-sms-api app on the phone lacks the SMS permission (error code PERMISSION_DENIED) and the phone has not reported the permission granted since, or when an enabled phone reported the SMS permission off in a heartbeat within the last 7 days. False when neither applies. Null when the account has never sent a message and no phone reports the permission off.',
   })
   needsSmsPermission: boolean | null
 
@@ -1812,7 +1812,7 @@ export class SendSMSWarningDTO {
   @ApiProperty({
     type: String,
     description:
-      'Machine readable warning code. SMS_PERMISSION_MISSING: the textbee app on the sending phone last reported the SMS permission as off. The message is queued, and it fails if the permission is still off.',
+      'Machine readable warning code. SMS_PERMISSION_MISSING: the gateway-sms-api app on the sending phone last reported the SMS permission as off. The message is queued, and it fails if the permission is still off.',
     example: 'SMS_PERMISSION_MISSING',
   })
   code: string
@@ -1821,7 +1821,7 @@ export class SendSMSWarningDTO {
     type: String,
     description: 'Human readable explanation of the warning.',
     example:
-      'The textbee app on this phone last reported the SMS permission as off. The message fails if it is still off.',
+      'The gateway-sms-api app on this phone last reported the SMS permission as off. The message fails if it is still off.',
   })
   message: string
 }
@@ -1986,7 +1986,7 @@ export class SMSBatchDTO {
     type: Number,
     required: false,
     description:
-      'Messages with no result: no report from the phone 20 minutes after they were due, or a state textbee does not recognize. A late report still updates the message and the batch.',
+      'Messages with no result: no report from the phone 20 minutes after they were due, or a state gateway-sms-api does not recognize. A late report still updates the message and the batch.',
     example: 0,
   })
   unknownCount?: number

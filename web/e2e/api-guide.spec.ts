@@ -69,8 +69,8 @@ test.describe('api guide (mocked API, no real backend)', () => {
     await expect(page.getByText('package main').first()).toBeVisible()
 
     await page.getByRole('tab', { name: 'Python SDK', exact: true }).click()
-    await expect(page.getByText('pip install textbee')).toBeVisible()
-    await expect(page.getByText('from textbee import Textbee').first()).toBeVisible()
+    await expect(page.getByText('pip install gateway-sms-api')).toBeVisible()
+    await expect(page.getByText('from gateway-sms-api import Textbee').first()).toBeVisible()
   })
 
   // The guide applies Prism themes, so it must render with the Prism

@@ -62,7 +62,7 @@ export default function YearlySwitchCard({
       // no auto-retry here: the request may have charged the card
       setError(
         apiErrorMessage(err) ||
-          'Failed to change your plan. Please try again or contact billing@textbee.dev.'
+          'Failed to change your plan. Please try again or contact billing@gateway-sms-api.dev.'
       )
       inFlight.current = false
       setIsConfirming(false)

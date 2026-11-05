@@ -12,13 +12,13 @@ export type AccessChannel = (typeof ACCESS_CHANNELS)[number]
 const DEVICE_ROUTE =
   /\/gateway\/devices\/[^/]+\/(heartbeat|receive-sms|receiveSMS|sms-status)$/
 
-// The client header the official clients send, for example textbee-js/1.4.0.
-const ANDROID_CLIENT = 'textbee-android'
+// The client header the official clients send, for example gateway-js/1.4.0.
+const ANDROID_CLIENT = 'gateway-sms-api-android'
 
 const CLIENT_FAMILIES: { label: string; match: RegExp }[] = [
-  { label: 'textbee-js', match: /^textbee-js\b/ },
-  { label: 'textbee-python', match: /^textbee-python\b/ },
-  { label: 'textbee-android', match: /^textbee-android\b/ },
+  { label: 'gateway-js', match: /^gateway-js\b/ },
+  { label: 'gateway-python', match: /^gateway-python\b/ },
+  { label: 'gateway-sms-api-android', match: /^gateway-sms-api-android\b/ },
 ]
 
 const USER_AGENT_FAMILIES: { label: string; match: RegExp }[] = [

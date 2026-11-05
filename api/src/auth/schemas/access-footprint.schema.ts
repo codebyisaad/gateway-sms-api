@@ -47,7 +47,7 @@ export class AccessFootprint {
   @Prop({ type: Number })
   asn?: number
 
-  // Bounded family label for the caller, for example textbee-js or curl.
+  // Bounded family label for the caller, for example gateway-js or curl.
   @Prop({ type: String })
   client?: string
 

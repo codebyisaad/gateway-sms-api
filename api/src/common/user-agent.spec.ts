@@ -227,7 +227,7 @@ describe('describeClient', () => {
     '   ',
     'axios/1.13.2',
     'curl/8.4.0',
-    'textbee-android/1.4.0',
+    'gateway-sms-api-android/1.4.0',
     'okhttp/4.12.0',
     'python-requests/2.32.3',
   ])('returns nothing for %p, which is not a browser', (ua) => {

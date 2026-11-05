@@ -253,7 +253,7 @@ export default function ApiGuide() {
           </Button>
           <Button asChild variant='outline' size='sm'>
             <a
-              href='https://api.textbee.dev/'
+              href='https://api.gateway-sms-api.dev/'
               target='_blank'
               rel='noopener noreferrer'
             >
@@ -263,7 +263,7 @@ export default function ApiGuide() {
           </Button>
           <Button asChild variant='outline' size='sm'>
             <a
-              href='https://www.npmjs.com/package/@textbee/sdk'
+              href='https://www.npmjs.com/package/@gateway-sms-api/sdk'
               target='_blank'
               rel='noopener noreferrer'
             >
@@ -273,7 +273,7 @@ export default function ApiGuide() {
           </Button>
           <Button asChild variant='outline' size='sm'>
             <a
-              href='https://pypi.org/project/textbee/'
+              href='https://pypi.org/project/gateway-sms-api/'
               target='_blank'
               rel='noopener noreferrer'
             >

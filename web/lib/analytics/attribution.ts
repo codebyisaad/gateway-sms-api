@@ -57,8 +57,8 @@ function clean(value: string | null | undefined): string | undefined {
   return trimmed || undefined
 }
 
-// Approximates the registrable domain so a hop between textbee.dev and
-// app.textbee.dev is not counted as a new acquisition source.
+// Approximates the registrable domain so a hop between gateway-sms-api.dev and
+// app.gateway-sms-api.dev is not counted as a new acquisition source.
 export function isInternalReferrer(
   referrerHost: string,
   currentHost: string

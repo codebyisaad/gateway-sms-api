@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { render } from '@testing-library/react'
 
 /*
- * textbee is open source. A self-hosted dashboard must not report into the
+ * gateway-sms-api is open source. A self-hosted dashboard must not report into the
  * hosted service's analytics accounts, so every third-party script is gated on
  * an env var and nothing loads when none is set.
  *

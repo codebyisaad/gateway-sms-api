@@ -112,7 +112,7 @@ export default function DashboardPage() {
             size='sm'
             className='max-md:h-12 max-md:rounded-xl max-md:border max-md:border-input max-md:bg-card max-md:text-sm'
             onClick={() => window.open(
-                'https://textbee.dev/quickstart',
+                'https://gateway-sms-api.dev/quickstart',
                 '_blank',
                 'noopener,noreferrer'
               )}

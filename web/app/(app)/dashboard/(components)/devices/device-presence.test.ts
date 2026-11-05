@@ -90,17 +90,17 @@ describe('presenceHint', () => {
 
   it('says how long an offline device has been quiet and what to do', () => {
     expect(presenceHint(hintDevice({ lastHeartbeat: ago(300) }), now)).toBe(
-      'Not seen for 5 hours. The app sends a status update every 30 minutes. Open the textbee app on the phone and turn off battery optimization for textbee.'
+      'Not seen for 5 hours. The app sends a status update every 30 minutes. Open the gateway-sms-api app on the phone and turn off battery optimization for gateway-sms-api.'
     )
   })
 
   it('explains a disabled device and keeps its last seen time', () => {
     const last = ago(60 * 48)
     expect(presenceHint(hintDevice({ enabled: false, lastHeartbeat: last }), now)).toBe(
-      `The gateway is off in the textbee app on this phone. Sends to this device fail until you turn it on. Last seen: ${toExactLabel(new Date(last))}.`
+      `The gateway is off in the gateway-sms-api app on this phone. Sends to this device fail until you turn it on. Last seen: ${toExactLabel(new Date(last))}.`
     )
     expect(presenceHint(hintDevice({ enabled: false }), now)).toBe(
-      'The gateway is off in the textbee app on this phone. Sends to this device fail until you turn it on.'
+      'The gateway is off in the gateway-sms-api app on this phone. Sends to this device fail until you turn it on.'
     )
   })
 
@@ -115,7 +115,7 @@ describe('presenceHint', () => {
 
   it('waits for the first status update on a build that sends them', () => {
     expect(presenceHint(hintDevice({ appVersionCode: 20 }), now)).toBe(
-      'Not seen yet. Open the textbee app on the phone.'
+      'Not seen yet. Open the gateway-sms-api app on the phone.'
     )
   })
 })

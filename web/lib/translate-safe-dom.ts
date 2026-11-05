@@ -1,6 +1,6 @@
 // Page translators replace React's text nodes, so these guards stop React DOM updates from throwing.
 
-const PATCHED = Symbol.for('textbee.translateSafeDom')
+const PATCHED = Symbol.for('gateway-sms-api.translateSafeDom')
 
 export function patchDomForTranslation() {
   if (typeof Node !== 'function' || !Node.prototype) return

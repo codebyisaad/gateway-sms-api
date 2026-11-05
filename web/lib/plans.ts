@@ -2,7 +2,7 @@ import type { Plan } from '@/lib/api/types'
 
 /**
  * Plan definitions for the dashboard, mirroring the marketing site's pricing
- * section (textbee-marketing pricing-section.tsx).
+ * section (gateway-sms-api-marketing pricing-section.tsx).
  *
  * The tier copy is static, so an environment whose plans collection is empty
  * still shows every tier to choose from. Prices are not: they come from the
@@ -153,7 +153,7 @@ export function checkoutPath(
 
 /**
  * Refund window by interval, mirroring the published refund policy
- * (textbee-marketing refund-policy/page.tsx). Quoting the wrong number here
+ * (gateway-sms-api-marketing refund-policy/page.tsx). Quoting the wrong number here
  * would be a promise we do not keep.
  */
 export const MONEY_BACK_DAYS: Record<BillingInterval, number> = {

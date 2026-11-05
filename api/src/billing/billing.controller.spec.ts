@@ -330,7 +330,7 @@ describe('BillingController - yearlySwitch', () => {
   it('redirects to where the service says, uncached', async () => {
     const yearlySwitchRedirect = jest
       .fn()
-      .mockResolvedValue('https://app.textbee.dev/checkout/pro?billingInterval=yearly')
+      .mockResolvedValue('https://app.gateway-sms-api.dev/checkout/pro?billingInterval=yearly')
     const controller = new BillingController({ yearlySwitchRedirect } as any, {} as any)
     const res = { set: jest.fn(), redirect: jest.fn() }
 
@@ -343,7 +343,7 @@ describe('BillingController - yearlySwitch', () => {
     })
     expect(res.redirect).toHaveBeenCalledWith(
       302,
-      'https://app.textbee.dev/checkout/pro?billingInterval=yearly',
+      'https://app.gateway-sms-api.dev/checkout/pro?billingInterval=yearly',
     )
   })
 })

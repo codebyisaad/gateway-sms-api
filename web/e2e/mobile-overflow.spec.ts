@@ -66,7 +66,7 @@ test.describe('no horizontal overflow at 375px (mocked API)', () => {
     await mockApi(page)
     await page.goto('/dashboard/community')
 
-    await page.getByRole('button', { name: /Share textbee\.dev/ }).click()
+    await page.getByRole('button', { name: /Share gateway-sms-api\.dev/ }).click()
     const dialog = page.getByRole('dialog')
     await expect(dialog.getByText('Choose your platform')).toBeVisible()
 

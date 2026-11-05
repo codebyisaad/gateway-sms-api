@@ -128,7 +128,7 @@ export default function AppHeader({
         <Link className='flex items-center space-x-2' href={Routes.landingPage}>
           <Image
             src='/images/logo.png'
-            alt='textbee Logo'
+            alt='gateway-sms-api Logo'
             width={24}
             height={24}
             className='h-6 w-6 rounded-full bg-white'

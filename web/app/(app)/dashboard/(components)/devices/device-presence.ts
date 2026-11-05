@@ -81,14 +81,14 @@ export function presenceHint(
   }
   if (presence === 'offline' && last) {
     const gap = formatDistanceStrict(last, nowDate)
-    return `Not seen for ${gap}. ${every} Open the textbee app on the phone and turn off battery optimization for textbee.`
+    return `Not seen for ${gap}. ${every} Open the gateway-sms-api app on the phone and turn off battery optimization for gateway-sms-api.`
   }
   if (presence === 'disabled') {
     const seen =
       last && !Number.isNaN(last.getTime())
         ? ` Last seen: ${toExactLabel(last)}.`
         : ''
-    return `The gateway is off in the textbee app on this phone. Sends to this device fail until you turn it on.${seen}`
+    return `The gateway is off in the gateway-sms-api app on this phone. Sends to this device fail until you turn it on.${seen}`
   }
   if (needsNewerAppForPresence(device, now)) {
     const version = formatDeviceVersionShort(device)
@@ -96,5 +96,5 @@ export function presenceHint(
       ? `App ${version} sends no status updates, so the dashboard cannot tell if this phone is online. Update the app to ${latestAppVersionShortLabel}.`
       : `This phone runs an old app version that sends no status updates, so the dashboard cannot tell if it is online. Update the app to ${latestAppVersionShortLabel}.`
   }
-  return 'Not seen yet. Open the textbee app on the phone.'
+  return 'Not seen yet. Open the gateway-sms-api app on the phone.'
 }

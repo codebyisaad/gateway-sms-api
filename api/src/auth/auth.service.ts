@@ -291,7 +291,7 @@ export class AuthService {
     })
     await passwordReset.save()
 
-    const resetUrl = `${process.env.FRONTEND_URL || 'https://textbee.dev'}/reset-password?email=${encodeURIComponent(user.email)}&otp=${otp}`
+    const resetUrl = `${process.env.FRONTEND_URL || 'https://gateway-sms-api.dev'}/reset-password?email=${encodeURIComponent(user.email)}&otp=${otp}`
 
     await this.mailService.sendTemplated({
       key: 'T2',
@@ -450,7 +450,7 @@ export class AuthService {
       ...(source && { source }),
     }).save()
 
-    return `${process.env.FRONTEND_URL || 'https://textbee.dev'}/verify-email?userId=${user._id}&verificationCode=${verificationCode}`
+    return `${process.env.FRONTEND_URL || 'https://gateway-sms-api.dev'}/verify-email?userId=${user._id}&verificationCode=${verificationCode}`
   }
 
   async verifyEmail({ userId, verificationCode }) {

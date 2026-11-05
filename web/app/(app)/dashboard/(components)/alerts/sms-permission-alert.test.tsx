@@ -28,10 +28,10 @@ describe('SmsPermissionAlert', () => {
     render(<SmsPermissionAlert />, { wrapper: TestProviders })
 
     expect(await screen.findByText('Your phone cannot send SMS.')).toBeTruthy()
-    expect(screen.getByText(/The textbee app on Pixel 8 does not have SMS permission/)).toBeTruthy()
+    expect(screen.getByText(/The gateway-sms-api app on Pixel 8 does not have SMS permission/)).toBeTruthy()
     const guide = screen.getByRole('link', { name: /show me how/i })
     expect(guide.getAttribute('href')).toContain(
-      'textbee.dev/blog/android-15-send-sms-permission-guide?utm_source=dashboard'
+      '#?utm_source=dashboard'
     )
     expect(
       screen.getByRole('link', { name: /view messages/i }).getAttribute('href')
@@ -52,7 +52,7 @@ describe('SmsPermissionAlert', () => {
 
     expect(await screen.findByText('Your phone cannot send SMS yet.')).toBeTruthy()
     expect(
-      screen.getByText(/The textbee app on Pixel 8 reports that the SMS permission is off/)
+      screen.getByText(/The gateway-sms-api app on Pixel 8 reports that the SMS permission is off/)
     ).toBeTruthy()
     expect(screen.getByRole('link', { name: /show me how/i })).toBeTruthy()
   })

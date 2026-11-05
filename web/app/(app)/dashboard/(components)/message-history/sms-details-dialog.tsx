@@ -176,7 +176,7 @@ export default function SmsDetailsDialog({
               phone used {simName(message)}. This usually means no SIM in the
               phone has that ID. SIM IDs can change when a SIM is removed,
               reinserted or swapped. Copy the current ID from the SIM Cards
-              section of the textbee app.
+              section of the gateway-sms-api app.
             </p>
           )}
 

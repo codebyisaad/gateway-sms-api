@@ -20,7 +20,7 @@ test.describe('webhooks (mocked API, no real backend)', () => {
     ).toHaveAttribute('aria-current', 'page')
     // Mocked webhook subscription from the fixtures.
     await expect(
-      page.getByText('https://example.com/webhooks/textbee').first()
+      page.getByText('https://example.com/webhooks/gateway-sms-api').first()
     ).toBeVisible()
   })
 

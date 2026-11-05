@@ -32,7 +32,7 @@ describe('classifyChannel', () => {
       classifyChannel({
         hasBearer: false,
         path: '/api/v1/gateway/devices/652f1a/messages',
-        sdkClient: 'textbee-android/2.9.0',
+        sdkClient: 'gateway-sms-api-android/2.9.0',
       }),
     ).toBe('device')
   })
@@ -51,7 +51,7 @@ describe('classifyChannel', () => {
       classifyChannel({
         hasBearer: true,
         path: '/api/v1/gateway/devices',
-        sdkClient: 'textbee-android/2.9.0',
+        sdkClient: 'gateway-sms-api-android/2.9.0',
       }),
     ).toBe('web')
   })
@@ -65,19 +65,19 @@ describe('classifyClient', () => {
   it('prefers the client a caller declares', () => {
     expect(
       classifyClient({
-        sdkClient: 'textbee-js/1.4.0',
+        sdkClient: 'gateway-js/1.4.0',
         userAgent: 'axios/1.7.2',
       }),
-    ).toBe('textbee-js')
-    expect(classifyClient({ sdkClient: 'textbee-android/2.9.0' })).toBe(
-      'textbee-android',
+    ).toBe('gateway-js')
+    expect(classifyClient({ sdkClient: 'gateway-sms-api-android/2.9.0' })).toBe(
+      'gateway-sms-api-android',
     )
     expect(
       classifyClient({
-        sdkClient: 'textbee-python/0.1.0',
-        userAgent: 'textbee-python/0.1.0',
+        sdkClient: 'gateway-python/0.1.0',
+        userAgent: 'gateway-python/0.1.0',
       }),
-    ).toBe('textbee-python')
+    ).toBe('gateway-python')
   })
 
   it.each([

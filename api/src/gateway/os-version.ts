@@ -7,7 +7,7 @@
  * than relying on the client to report it.
  *
  * Keep FINGERPRINT_RELEASE and BUILD_ID_RELEASE in sync with the copies in
- * textbee-tools/src/textbee_tools/backfill_os_version.py
+ * gateway-sms-api-tools/src/gateway-sms-api_tools/backfill_os_version.py
  */
 
 /** Matches the release in a BASE_OS fingerprint: samsung/a13nnxx/a13:14/UP1A.../... */

@@ -35,10 +35,10 @@ const SAMPLES: Record<string, Record<string, any>> = {
     name: 'Alex',
     title: 'A webhook was turned off',
     subscriptionName: 'Order updates',
-    deliveryUrl: 'https://example.com/hooks/textbee',
+    deliveryUrl: 'https://example.com/hooks/gateway-sms-api',
     failureCount: 42,
     ctaLabel: 'Review webhooks',
-    ctaUrl: 'https://app.textbee.dev/dashboard/webhooks',
+    ctaUrl: 'https://app.gateway-sms-api.dev/dashboard/webhooks',
   },
   'webhook-auto-disable-admin-summary': {
     title: 'Webhooks auto-disabled',
@@ -135,10 +135,10 @@ async function main() {
     process.exitCode = 1
   }
 
-  const index = `<!doctype html><meta charset="utf-8"><title>textbee email previews</title>
+  const index = `<!doctype html><meta charset="utf-8"><title>gateway-sms-api email previews</title>
 <style>body{font:16px/1.6 system-ui,sans-serif;max-width:40rem;margin:3rem auto;padding:0 1rem}
 h1{font-size:1.25rem}li{margin:.35rem 0}a{color:#EA580C}</style>
-<h1>textbee email previews</h1>
+<h1>gateway-sms-api email previews</h1>
 <p>Rendered ${rendered.length} templates at ${new Date().toISOString()}.</p>
 <ul>${rendered.map((n) => `<li><a href="./${n}.html">${n}</a></li>`).join('')}</ul>`
   fs.writeFileSync(path.join(OUT_DIR, 'index.html'), index)

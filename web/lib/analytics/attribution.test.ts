@@ -32,13 +32,13 @@ describe('parseProviders', () => {
 
 describe('isInternalReferrer', () => {
   it('treats the marketing site and the dashboard as one visit', () => {
-    expect(isInternalReferrer('textbee.dev', 'app.textbee.dev')).toBe(true)
-    expect(isInternalReferrer('app.textbee.dev', 'app.textbee.dev')).toBe(true)
+    expect(isInternalReferrer('gateway-sms-api.dev', 'app.gateway-sms-api.dev')).toBe(true)
+    expect(isInternalReferrer('app.gateway-sms-api.dev', 'app.gateway-sms-api.dev')).toBe(true)
   })
 
   it('keeps a genuine external referrer', () => {
-    expect(isInternalReferrer('l.facebook.com', 'textbee.dev')).toBe(false)
-    expect(isInternalReferrer('news.ycombinator.com', 'textbee.dev')).toBe(false)
+    expect(isInternalReferrer('l.facebook.com', 'gateway-sms-api.dev')).toBe(false)
+    expect(isInternalReferrer('news.ycombinator.com', 'gateway-sms-api.dev')).toBe(false)
   })
 })
 
@@ -49,7 +49,7 @@ describe('buildTouch', () => {
         '?utm_source=meta&utm_medium=paid_social&utm_campaign=c1&utm_content=a1&utm_term=s1&fbclid=abc',
       referrer: '',
       pathname: '/pricing',
-      hostname: 'textbee.dev',
+      hostname: 'gateway-sms-api.dev',
       now: NOW,
     })
 
@@ -71,7 +71,7 @@ describe('buildTouch', () => {
         search: '',
         referrer: 'https://www.reddit.com/r/selfhosted/comments/x',
         pathname: '/',
-        hostname: 'textbee.dev',
+        hostname: 'gateway-sms-api.dev',
         now: NOW,
       }).referrer
     ).toBe('www.reddit.com')
@@ -79,9 +79,9 @@ describe('buildTouch', () => {
     expect(
       buildTouch({
         search: '',
-        referrer: 'https://app.textbee.dev/dashboard',
+        referrer: 'https://app.gateway-sms-api.dev/dashboard',
         pathname: '/',
-        hostname: 'textbee.dev',
+        hostname: 'gateway-sms-api.dev',
         now: NOW,
       }).referrer
     ).toBeUndefined()
@@ -92,7 +92,7 @@ describe('buildTouch', () => {
       search: `?utm_campaign=${'x'.repeat(500)}`,
       referrer: '',
       pathname: '/',
-      hostname: 'textbee.dev',
+      hostname: 'gateway-sms-api.dev',
       now: NOW,
     })
     expect(touch.campaign).toHaveLength(200)
@@ -104,7 +104,7 @@ describe('buildTouch', () => {
         search: '',
         referrer: 'not a url',
         pathname: '/',
-        hostname: 'textbee.dev',
+        hostname: 'gateway-sms-api.dev',
         now: NOW,
       }).referrer
     ).toBeUndefined()
@@ -302,10 +302,10 @@ describe('cookie helpers', () => {
 
   it('adds the shared domain and Secure only when asked', () => {
     const shared = buildCookieString('{}', {
-      domain: '.textbee.dev',
+      domain: '.gateway-sms-api.dev',
       secure: true,
     })
-    expect(shared).toContain('domain=.textbee.dev')
+    expect(shared).toContain('domain=.gateway-sms-api.dev')
     expect(shared).toContain('Secure')
     expect(shared).toContain('SameSite=Lax')
     expect(shared).toContain('max-age=7776000')

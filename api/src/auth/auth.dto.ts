@@ -306,7 +306,7 @@ export class GoogleLoginInputDTO {
     type: String,
     required: true,
     description:
-      'Google ID token from the browser sign-in flow. It must be issued for the textbee client and carry a verified email.',
+      'Google ID token from the browser sign-in flow. It must be issued for the gateway-sms-api client and carry a verified email.',
   })
   idToken: string
 

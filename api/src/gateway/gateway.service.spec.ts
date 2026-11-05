@@ -1031,7 +1031,7 @@ describe('GatewayService', () => {
       expect(result.warning).toEqual({
         code: 'SMS_PERMISSION_MISSING',
         message:
-          'The textbee app on this phone last reported the SMS permission as off. The message fails if it is still off.',
+          'The gateway-sms-api app on this phone last reported the SMS permission as off. The message fails if it is still off.',
       })
     })
 
@@ -1586,13 +1586,13 @@ describe('GatewayService', () => {
       await service.receiveSMS(
         mockDeviceId,
         mockReceivedSmsData,
-        'textbee-android/2.8.0',
+        'gateway-sms-api-android/2.8.0',
       )
 
       expect(mockSmsModel.create.mock.calls[0][0].metadata).toEqual({
         appVersionCode: 18,
         appVersionName: '2.8.0',
-        client: 'textbee-android/2.8.0',
+        client: 'gateway-sms-api-android/2.8.0',
         appVersionAt: expect.any(Date),
       })
     })

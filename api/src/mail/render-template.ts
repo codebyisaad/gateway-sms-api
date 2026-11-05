@@ -7,7 +7,7 @@ const PARTIAL_DIR = path.join(TEMPLATE_DIR, 'partials')
 
 // Context every template gets via the shared email-layout partial.
 export const layoutContext = () => ({
-  brandName: 'textbee.dev',
+  brandName: 'gateway-sms-api.dev',
   year: new Date().getFullYear(),
 })
 

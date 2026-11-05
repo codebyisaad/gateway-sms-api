@@ -1,0 +1,242 @@
+package com.codebyisaad.sms.helpers
+
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.net.ConnectivityManager
+import android.os.BatteryManager
+import android.os.Build
+import android.os.PowerManager
+import android.os.StatFs
+import android.os.SystemClock
+import android.util.Log
+import com.google.firebase.messaging.FirebaseMessaging
+import com.codebyisaad.sms.ApiManager
+import com.codebyisaad.sms.AppConstants
+import com.codebyisaad.sms.BuildConfig
+import com.codebyisaad.sms.GatewayUtils
+import com.codebyisaad.sms.dtos.HeartbeatInputDTO
+import com.codebyisaad.sms.dtos.SimInfoCollectionDTO
+import java.io.IOException
+import java.util.Locale
+import java.util.TimeZone
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+
+object HeartbeatHelper {
+    private const val TAG = "HeartbeatHelper"
+
+    @JvmStatic
+    fun sendHeartbeat(context: Context, deviceId: String, apiKey: String): Boolean {
+        if (deviceId.isEmpty()) {
+            Log.d(TAG, "Device not registered, skipping heartbeat")
+            return false
+        }
+        if (apiKey.isEmpty()) {
+            Log.e(TAG, "API key not available, skipping heartbeat")
+            return false
+        }
+
+        val heartbeatInput = HeartbeatInputDTO()
+
+        return try {
+            // FCM token (blocking wait up to 5 seconds)
+            try {
+                val latch = CountDownLatch(1)
+                var fcmTokenResult: String? = null
+                FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                    if (task.isSuccessful) fcmTokenResult = task.result
+                    latch.countDown()
+                }
+                if (latch.await(5, TimeUnit.SECONDS) && fcmTokenResult != null) {
+                    heartbeatInput.fcmToken = fcmTokenResult
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to get FCM token: ${e.message}")
+            }
+
+            // Battery info
+            val batteryStatus = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            if (batteryStatus != null) {
+                val level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                val scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                if (level >= 0 && scale > 0) {
+                    heartbeatInput.batteryPercentage = level * 100 / scale
+                }
+                val status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                heartbeatInput.isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                        status == BatteryManager.BATTERY_STATUS_FULL
+            }
+
+            // Network type
+            @Suppress("DEPRECATION")
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            @Suppress("DEPRECATION")
+            val activeNetwork = cm?.activeNetworkInfo
+            @Suppress("DEPRECATION")
+            heartbeatInput.networkType = when {
+                activeNetwork?.isConnected == true && activeNetwork.type == ConnectivityManager.TYPE_WIFI -> "wifi"
+                activeNetwork?.isConnected == true && activeNetwork.type == ConnectivityManager.TYPE_MOBILE -> "cellular"
+                else -> "none"
+            }
+
+            // App version
+            heartbeatInput.appVersionName = BuildConfig.VERSION_NAME
+            heartbeatInput.appVersionCode = BuildConfig.VERSION_CODE
+
+            // OS version, so devices backfill without needing to re-register
+            heartbeatInput.osVersion = Build.VERSION.RELEASE
+            heartbeatInput.osApiLevel = Build.VERSION.SDK_INT
+
+            // Device uptime, including time spent in deep sleep
+            heartbeatInput.deviceUptimeMillis = SystemClock.elapsedRealtime()
+
+            // Memory
+            val runtime = Runtime.getRuntime()
+            heartbeatInput.memoryFreeBytes = runtime.freeMemory()
+            heartbeatInput.memoryTotalBytes = runtime.totalMemory()
+            heartbeatInput.memoryMaxBytes = runtime.maxMemory()
+
+            // Storage
+            val statFs = StatFs(context.filesDir.path)
+            heartbeatInput.storageAvailableBytes = statFs.availableBytes
+            heartbeatInput.storageTotalBytes = statFs.totalBytes
+
+            // Locale / timezone
+            heartbeatInput.timezone = TimeZone.getDefault().id
+            heartbeatInput.locale = Locale.getDefault().toString()
+
+            // Preferences
+            heartbeatInput.receiveSMSEnabled = SharedPreferenceHelper.getSharedPreferenceBoolean(
+                context, AppConstants.SHARED_PREFS_RECEIVE_SMS_ENABLED_KEY, false
+            )
+            heartbeatInput.smsSendDelaySeconds = SharedPreferenceHelper.getSharedPreferenceInt(
+                context, AppConstants.SHARED_PREFS_SMS_SEND_DELAY_SECONDS_KEY,
+                AppConstants.DEFAULT_SMS_SEND_DELAY_SECONDS
+            )
+
+            // What the OS is doing to the app in the background
+            try {
+                val powerManager =
+                    context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+                if (powerManager != null) {
+                    heartbeatInput.isIgnoringBatteryOptimizations =
+                        powerManager.isIgnoringBatteryOptimizations(context.packageName)
+                    heartbeatInput.isDeviceIdleMode = powerManager.isDeviceIdleMode
+                    heartbeatInput.isPowerSaveMode = powerManager.isPowerSaveMode
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "Could not read power state: ${e.message}")
+            }
+
+            // Permissions and app settings
+            val health = DeviceHealth.evaluate(context)
+            heartbeatInput.hasSendSmsPermission = health.hasSendSmsPermission
+            heartbeatInput.hasReceiveSmsPermission = health.hasReceiveSmsPermission
+            heartbeatInput.hasReadPhoneStatePermission = health.hasReadPhoneStatePermission
+            heartbeatInput.hasPostNotificationsPermission = health.hasPostNotificationsPermission
+            heartbeatInput.stickyNotificationEnabled = health.stickyNotificationEnabled
+            heartbeatInput.usingLegacyUi = health.usingLegacyUi
+            val settingsKey = settingsKey(
+                health,
+                heartbeatInput.receiveSMSEnabled ?: false,
+                heartbeatInput.smsSendDelaySeconds ?: AppConstants.DEFAULT_SMS_SEND_DELAY_SECONDS,
+                heartbeatInput.isIgnoringBatteryOptimizations
+            )
+
+            // SIM info
+            heartbeatInput.simInfo = SimInfoCollectionDTO().apply {
+                lastUpdated = System.currentTimeMillis()
+                sims = GatewayUtils.collectSimInfo(context)
+            }
+
+            // Send heartbeat (blocking)
+            val response = ApiManager.getApiService().heartbeat(deviceId, apiKey, heartbeatInput).execute()
+            if (response.isSuccessful && response.body() != null) {
+                val body = response.body()!!
+                if (body.fcmTokenUpdated) Log.d(TAG, "FCM token was updated during heartbeat")
+                if (!body.name.isNullOrBlank()) {
+                    SharedPreferenceHelper.setSharedPreferenceString(
+                        context, AppConstants.SHARED_PREFS_DEVICE_NAME_KEY, body.name!!
+                    )
+                    Log.d(TAG, "Synced device name from heartbeat: ${body.name}")
+                }
+                SharedPreferenceHelper.setSharedPreferenceString(
+                    context, AppConstants.SHARED_PREFS_LAST_HEARTBEAT_MS_KEY,
+                    System.currentTimeMillis().toString()
+                )
+                SharedPreferenceHelper.setSharedPreferenceString(
+                    context, AppConstants.SHARED_PREFS_LAST_REPORTED_SETTINGS_KEY, settingsKey
+                )
+                DeviceConfig.save(context, body.config)
+                Log.d(TAG, "Heartbeat sent successfully")
+                DeviceLog.log(context, "heartbeat_ok", "pending ${body.pendingCount}")
+                UpdateNotifier.maybeNotify(context)
+                if (body.pendingCount > 0) RecoveryPoll.run(context, "heartbeat")
+                true
+            } else {
+                Log.e(TAG, "Failed to send heartbeat. Response code: ${response.code()}")
+                DeviceLog.log(context, "heartbeat_failed", "http ${response.code()}")
+                false
+            }
+        } catch (e: IOException) {
+            Log.e(TAG, "Heartbeat API call failed: ${e.message}")
+            DeviceLog.log(context, "heartbeat_failed", "network: ${e.message}")
+            false
+        } catch (e: Exception) {
+            // Covers collection, the call and the post-reply work alike, so the
+            // detail names the exception rather than guessing which part failed.
+            // JsonSyntaxException here means the reply itself could not be read.
+            DeviceLog.log(context, "heartbeat_failed", "error: ${e.javaClass.simpleName}")
+            GatewayUtils.logException(e, "Heartbeat failed")
+            false
+        }
+    }
+
+    /** The reported values a user can change, compared to spot changes made outside the app. */
+    @JvmStatic
+    fun reportedSettingsKey(context: Context): String {
+        val ignoringBatteryOptimizations = try {
+            (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)
+                ?.isIgnoringBatteryOptimizations(context.packageName)
+        } catch (e: Exception) {
+            Log.d(TAG, "Could not read battery optimization state: ${e.message}")
+            null
+        }
+        return settingsKey(
+            DeviceHealth.evaluate(context),
+            SharedPreferenceHelper.getSharedPreferenceBoolean(
+                context, AppConstants.SHARED_PREFS_RECEIVE_SMS_ENABLED_KEY, false
+            ),
+            SharedPreferenceHelper.getSharedPreferenceInt(
+                context, AppConstants.SHARED_PREFS_SMS_SEND_DELAY_SECONDS_KEY,
+                AppConstants.DEFAULT_SMS_SEND_DELAY_SECONDS
+            ),
+            ignoringBatteryOptimizations
+        )
+    }
+
+    fun settingsKey(
+        health: DeviceHealthSnapshot,
+        receiveSmsEnabled: Boolean,
+        smsSendDelaySeconds: Int,
+        ignoringBatteryOptimizations: Boolean?
+    ): String = "$health|$receiveSmsEnabled|$smsSendDelaySeconds|$ignoringBatteryOptimizations"
+
+    @JvmStatic
+    fun isDeviceEligibleForHeartbeat(context: Context): Boolean {
+        val deviceId = SharedPreferenceHelper.getSharedPreferenceString(
+            context, AppConstants.SHARED_PREFS_DEVICE_ID_KEY, ""
+        ) ?: ""
+        if (deviceId.isEmpty()) return false
+
+        val deviceEnabled = SharedPreferenceHelper.getSharedPreferenceBoolean(
+            context, AppConstants.SHARED_PREFS_GATEWAY_ENABLED_KEY, false
+        )
+        if (!deviceEnabled) return false
+
+        return SharedPreferenceHelper.getSharedPreferenceBoolean(
+            context, AppConstants.SHARED_PREFS_HEARTBEAT_ENABLED_KEY, true
+        )
+    }
+}

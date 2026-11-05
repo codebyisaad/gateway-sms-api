@@ -44,7 +44,7 @@ function getFcmErrorCode(error: { code?: string; message?: string } | null): str
 }
 
 const FCM_ACTIONABLE_MESSAGE =
-  'The device token is invalid. Please open the textbee mobile app, click on the update button to resync and try again.'
+  'The device token is invalid. Please open the gateway-sms-api mobile app, click on the update button to resync and try again.'
 
 function getFcmErrorMessage(error: { code?: string; message?: string } | null | undefined): string {
   const rawPart = `FCM_DELIVERY_FAILED: ${error?.message || 'FCM delivery failed'}`

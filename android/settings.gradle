@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "textbee"
+rootProject.name = "gateway-sms-api"
 include ':app'

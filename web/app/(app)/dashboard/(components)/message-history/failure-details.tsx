@@ -98,7 +98,7 @@ export default function FailureDetails({ message }: { message: SmsMessage }) {
       )}
       {view.code === 'PERMISSION_DENIED' && (
         <p className='text-xs text-foreground'>
-          The textbee app on this phone does not have SMS permission.{' '}
+          The gateway-sms-api app on this phone does not have SMS permission.{' '}
           <a
             href={smsPermissionGuideUrl('message_details')}
             target='_blank'

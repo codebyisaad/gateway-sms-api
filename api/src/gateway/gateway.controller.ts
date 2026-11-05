@@ -119,7 +119,7 @@ export class GatewayController {
   @ApiOperation({
     summary: 'Check whether a missing SMS permission blocks sending',
     description:
-      'Reads your latest outgoing message. If it failed with error code PERMISSION_DENIED, the textbee app on that phone lacks the SMS permission (or the Phone permission, for a send from a chosen SIM) and every send from it fails until the permission is granted (source failure). Otherwise, if an enabled phone reported the SMS permission off in a heartbeat within the last 7 days, the result also says the permission is needed, before any send is attempted (source heartbeat). The result clears as soon as a later message is sent or the phone reports the permission granted.',
+      'Reads your latest outgoing message. If it failed with error code PERMISSION_DENIED, the gateway-sms-api app on that phone lacks the SMS permission (or the Phone permission, for a send from a chosen SIM) and every send from it fails until the permission is granted (source failure). Otherwise, if an enabled phone reported the SMS permission off in a heartbeat within the last 7 days, the result also says the permission is needed, before any send is attempted (source heartbeat). The result clears as soon as a later message is sent or the phone reports the permission granted.',
   })
   @ApiResponse({
     status: 200,
@@ -137,7 +137,7 @@ export class GatewayController {
   @ApiOperation({
     summary: 'Register a device',
     description:
-      'Pairs an Android phone with your account. The textbee app calls this on setup and again whenever the push token changes.',
+      'Pairs an Android phone with your account. The gateway-sms-api app calls this on setup and again whenever the push token changes.',
   })
   @ApiResponse({
     status: 201,
@@ -227,7 +227,7 @@ export class GatewayController {
   @ApiOperation({
     summary: 'Report a device heartbeat',
     description:
-      'Called by the textbee app on a schedule to report that the phone is online, refresh its push token, and upload battery, storage, and SIM state.',
+      'Called by the gateway-sms-api app on a schedule to report that the phone is online, refresh its push token, and upload battery, storage, and SIM state.',
   })
   @ApiParam(DEVICE_ID_PARAM)
   @ApiResponse({
@@ -295,7 +295,7 @@ export class GatewayController {
   @ApiOperation({
     summary: 'Send an SMS',
     description:
-      'Sends one message to one or more recipients from a phone on your account. deviceId is optional: without it textbee uses your default device, otherwise the enabled device with the most recent heartbeat. Every recipient counts as one message against your plan.',
+      'Sends one message to one or more recipients from a phone on your account. deviceId is optional: without it gateway-sms-api uses your default device, otherwise the enabled device with the most recent heartbeat. Every recipient counts as one message against your plan.',
   })
   @ApiResponse({
     status: 200,
@@ -416,7 +416,7 @@ export class GatewayController {
   @ApiOperation({
     summary: 'Report an incoming SMS',
     description:
-      'Called by the textbee app when the phone receives a message. This is how received message history and MESSAGE_RECEIVED webhooks get their data. ' +
+      'Called by the gateway-sms-api app when the phone receives a message. This is how received message history and MESSAGE_RECEIVED webhooks get their data. ' +
       'A message with no text or no sender returns 200 with data.ignored set to true and is not stored. A missing or non-string message returns 400. ' +
       'A message is stored even when the account is over its plan limit, with overLimit set to true. ' +
       'A message uploaded more than 24 hours after receivedAt is stored with createdAt set to receivedAt and the upload time in originalCreatedAt. ' +
@@ -721,7 +721,7 @@ export class GatewayController {
   @ApiOperation({
     summary: 'Claim messages a push may have missed',
     description:
-      'Called by the textbee app when a heartbeat reports pending messages. Returns outbound messages still waiting after 30 minutes, at most 25, and marks each as dispatched again. Not more than once per 5 minutes per device.',
+      'Called by the gateway-sms-api app when a heartbeat reports pending messages. Returns outbound messages still waiting after 30 minutes, at most 25, and marks each as dispatched again. Not more than once per 5 minutes per device.',
   })
   @ApiParam(DEVICE_ID_PARAM)
   @ApiResponse({ status: 200, description: 'Messages for the app to send.' })
@@ -740,7 +740,7 @@ export class GatewayController {
   @ApiOperation({
     summary: 'Update the delivery status of an SMS',
     description:
-      'Called by the textbee app once the carrier reports the outcome. This is what moves a message from sent to delivered or failed.',
+      'Called by the gateway-sms-api app once the carrier reports the outcome. This is what moves a message from sent to delivered or failed.',
   })
   @ApiParam(DEVICE_ID_PARAM)
   @ApiResponse({ status: 200, description: 'The status was recorded.' })

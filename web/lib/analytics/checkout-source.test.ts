@@ -186,7 +186,7 @@ describe('withNoticeSource', () => {
 
   it.each([
     '/dashboard/account/billing',
-    'https://textbee.dev/checkout/pro',
+    'https://gateway-sms-api.dev/checkout/pro',
     '/messaging',
     '/checkout/../..//evil.example.net',
     '/checkout/../dashboard',

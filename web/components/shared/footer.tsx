@@ -30,13 +30,13 @@ export default function Footer() {
         <div className='flex items-center gap-2'>
           <Image
             src='/images/logo.png'
-            alt='textbee logo'
+            alt='gateway-sms-api logo'
             width={20}
             height={20}
             className='h-5 w-5 rounded-full bg-white'
           />
           <span className='text-sm text-muted-foreground'>
-            © {new Date().getFullYear()} textbee.dev
+            © {new Date().getFullYear()} gateway-sms-api.dev
           </span>
         </div>
 

@@ -35,7 +35,7 @@ test.describe('messaging (mocked API, no real backend)', () => {
       .click()
 
     await expect(page).toHaveURL(/\/dashboard\/messaging\/history/)
-    await expect(page.getByText('Hello from textbee')).toBeVisible()
+    await expect(page.getByText('Hello from gateway-sms-api')).toBeVisible()
   })
 
   test('history deep link survives refresh (route-based tabs)', async ({
@@ -53,7 +53,7 @@ test.describe('messaging (mocked API, no real backend)', () => {
       'aria-current',
       'page'
     )
-    await expect(page.getByText('Hello from textbee')).toBeVisible()
+    await expect(page.getByText('Hello from gateway-sms-api')).toBeVisible()
     // Never fell through to an error boundary.
     await expect(page.getByText('This page couldn')).toHaveCount(0)
   })

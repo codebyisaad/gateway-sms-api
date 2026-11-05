@@ -1,8 +1,8 @@
 export const Routes = {
-  landingPage: 'https://textbee.dev',
-  contribute: 'https://textbee.dev/contribute',
-  useCases: 'https://textbee.dev/use-cases',
-  quickstart: 'https://textbee.dev/quickstart',
+  landingPage: 'https://gateway-sms-api.dev',
+  contribute: 'https://#',
+  useCases: 'https://gateway-sms-api.dev/use-cases',
+  quickstart: 'https://gateway-sms-api.dev/quickstart',
   login: '/login',
   register: '/register',
   logout: '/logout',
@@ -11,9 +11,9 @@ export const Routes = {
 
   dashboard: '/dashboard',
 
-  downloadAndroidApp: 'https://textbee.dev/download',
-  privacyPolicy: 'https://textbee.dev/privacy-policy',
-  refundPolicy: 'https://textbee.dev/refund-policy',
-  termsOfService: 'https://textbee.dev/terms-of-service',
-  statusPage: 'https://status.textbee.dev',
+  downloadAndroidApp: 'https://#',
+  privacyPolicy: 'https://gateway-sms-api.dev/privacy-policy',
+  refundPolicy: 'https://gateway-sms-api.dev/refund-policy',
+  termsOfService: 'https://gateway-sms-api.dev/terms-of-service',
+  statusPage: 'https://status.gateway-sms-api.dev',
 }

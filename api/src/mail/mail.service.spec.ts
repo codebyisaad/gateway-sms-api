@@ -33,7 +33,7 @@ describe('MailService', () => {
     const { context } = mailerService.sendMail.mock.calls[0][0]
     expect(context).toMatchObject({
       name: 'Ada',
-      brandName: 'textbee.dev',
+      brandName: 'gateway-sms-api.dev',
       year: new Date().getFullYear(),
     })
   })
@@ -49,7 +49,7 @@ describe('MailService', () => {
     })
 
     const { context } = mailerService.sendMail.mock.calls[0][0]
-    expect(context.brandName).toBe('textbee.dev')
+    expect(context.brandName).toBe('gateway-sms-api.dev')
     expect(context.year).toBe(new Date().getFullYear())
   })
 
@@ -63,7 +63,7 @@ describe('MailService', () => {
     })
 
     expect(mailerService.sendMail.mock.calls[0][0].context).toMatchObject({
-      brandName: 'textbee.dev',
+      brandName: 'gateway-sms-api.dev',
     })
   })
 
@@ -336,9 +336,9 @@ describe('MailService.sendTemplated', () => {
     const mail = mailerService.sendMail.mock.calls[0][0]
     expect(mail).toMatchObject({
       to: 'ada@example.com',
-      from: 'textbee <notifications@textbee.dev>',
-      replyTo: 'support@textbee.dev',
-      subject: 'Reset your textbee password',
+      from: 'gateway-sms-api <notifications@gateway-sms-api.dev>',
+      replyTo: 'support@gateway-sms-api.dev',
+      subject: 'Reset your gateway-sms-api password',
       headers: { 'X-SES-MESSAGE-TAGS': 'template=T2' },
     })
     expect(mail.headers['X-SES-CONFIGURATION-SET']).toBeUndefined()

@@ -147,7 +147,7 @@ export default function CheckoutPage({
         const serverMessage = apiErrorMessage(error)
         setError(
           serverMessage ||
-            'Failed to create checkout session. Please try again or contact billing@textbee.dev.',
+            'Failed to create checkout session. Please try again or contact billing@gateway-sms-api.dev.',
         )
         console.error(serverMessage)
         setIsSubmitting(false)
@@ -173,7 +173,7 @@ export default function CheckoutPage({
       const serverMessage = apiErrorMessage(error)
       setError(
         serverMessage ||
-          'Failed to change your plan. Please try again or contact billing@textbee.dev.',
+          'Failed to change your plan. Please try again or contact billing@gateway-sms-api.dev.',
       )
       console.error(serverMessage)
       setIsConfirming(false)

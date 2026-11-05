@@ -128,7 +128,7 @@ export const searchEntries: SearchEntry[] = [
     label: 'API guide',
     group: 'Messaging',
     icon: Code2,
-    description: 'Integrate textbee into your app',
+    description: 'Integrate gateway-sms-api into your app',
     keywords: [
       'api',
       'docs',

@@ -12,14 +12,14 @@ const nextConfig = {
       },
       {
         source: '/android',
-        destination: 'https://textbee.dev/download',
+        destination: 'https://#',
         permanent: false,
       },
-      // The invite itself lives behind textbee.dev/discord, so it can rotate
+      // The invite itself lives behind #, so it can rotate
       // in one place.
       {
         source: '/discord',
-        destination: 'https://textbee.dev/discord',
+        destination: 'https://#',
         permanent: false,
       },
     ]

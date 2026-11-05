@@ -4,7 +4,7 @@
 // is runnable after pasting one API key. The previous guide always printed
 // YOUR_DEVICE_ID, which meant nothing on the page could be run as-is.
 
-export const API_BASE_URL = 'https://api.textbee.dev/api/v1'
+export const API_BASE_URL = 'https://api.gateway-sms-api.dev/api/v1'
 
 export type LanguageId =
   | 'curl'
@@ -62,23 +62,23 @@ const deviceIdField = (deviceId?: string) => ({
 })
 
 /** Package the SDK samples install, surfaced by the package manager picker. */
-export const SDK_PACKAGE = '@textbee/sdk'
+export const SDK_PACKAGE = '@gateway-sms-api/sdk'
 
 // Client setup shared by every SDK sample. The install command is deliberately
 // not here: it is rendered by the package manager picker above the code, so the
 // copy button hands back runnable code and nothing else.
-const SDK_SETUP = `import { Textbee } from '@textbee/sdk'
+const SDK_SETUP = `import { Textbee } from '@gateway-sms-api/sdk'
 
-const textbee = new Textbee({ apiKey: process.env.TEXTBEE_API_KEY })`
+const gateway-sms-api = new Textbee({ apiKey: process.env.TEXTBEE_API_KEY })`
 
 /** Package the Python SDK samples install. */
-export const PYTHON_SDK_PACKAGE = 'textbee'
+export const PYTHON_SDK_PACKAGE = 'gateway-sms-api'
 
 const PYTHON_SDK_SETUP = `import os
 
-from textbee import Textbee
+from gateway-sms-api import Textbee
 
-textbee = Textbee(api_key=os.environ['TEXTBEE_API_KEY'])`
+gateway-sms-api = Textbee(api_key=os.environ['TEXTBEE_API_KEY'])`
 
 export function buildEndpoints(deviceId?: string): Endpoint[] {
   const id = deviceId || PLACEHOLDER_DEVICE
@@ -97,7 +97,7 @@ export function buildEndpoints(deviceId?: string): Endpoint[] {
   -H "Content-Type: application/json" \\
   -d '{${device.curl}
     "recipients": ["+14155550101"],
-    "message": "Hello from textbee"
+    "message": "Hello from gateway-sms-api"
   }'`,
         node: `const res = await fetch(
   '${API_BASE_URL}/gateway/send-sms',
@@ -109,7 +109,7 @@ export function buildEndpoints(deviceId?: string): Endpoint[] {
     },
     body: JSON.stringify({${device.node}
       recipients: ['+14155550101'],
-      message: 'Hello from textbee',
+      message: 'Hello from gateway-sms-api',
     }),
   }
 )
@@ -122,7 +122,7 @@ res = requests.post(
     headers={'x-api-key': os.environ['TEXTBEE_API_KEY']},
     json={${device.python}
         'recipients': ['+14155550101'],
-        'message': 'Hello from textbee',
+        'message': 'Hello from gateway-sms-api',
     },
 )
 
@@ -139,7 +139,7 @@ curl_setopt_array($ch, [
     ],
     CURLOPT_POSTFIELDS => json_encode([${device.php}
         'recipients' => ['+14155550101'],
-        'message' => 'Hello from textbee',
+        'message' => 'Hello from gateway-sms-api',
     ]),
 ]);
 
@@ -155,7 +155,7 @@ import (
 )
 
 func main() {
-	body := []byte(\`{${device.go}"recipients":["+14155550101"],"message":"Hello from textbee"}\`)
+	body := []byte(\`{${device.go}"recipients":["+14155550101"],"message":"Hello from gateway-sms-api"}\`)
 
 	req, _ := http.NewRequest("POST",
 		"${API_BASE_URL}/gateway/send-sms",
@@ -174,17 +174,17 @@ func main() {
 }`,
         sdk: `${SDK_SETUP}
 
-const result = await textbee.sendSms({${device.sdk}
+const result = await gateway-sms-api.sendSms({${device.sdk}
   recipients: ['+14155550101'],
-  message: 'Hello from textbee',
+  message: 'Hello from gateway-sms-api',
 })
 
 console.log(result)`,
         'python-sdk': `${PYTHON_SDK_SETUP}
 
-result = textbee.send_sms(${device.pythonSdk}
+result = gateway-sms-api.send_sms(${device.pythonSdk}
     recipients=['+14155550101'],
-    message='Hello from textbee',
+    message='Hello from gateway-sms-api',
 )
 
 print(result)`,
@@ -294,7 +294,7 @@ func main() {
 }`,
         // Bulk send is the one endpoint here with no SDK method yet, so the
         // SDK tabs stay on the REST call rather than pretending otherwise.
-        sdk: `// Bulk send is not in @textbee/sdk yet. Use the REST API for now.
+        sdk: `// Bulk send is not in @gateway-sms-api/sdk yet. Use the REST API for now.
 const res = await fetch(
   '${API_BASE_URL}/gateway/send-bulk-sms',
   {
@@ -313,7 +313,7 @@ const res = await fetch(
 )
 
 console.log(await res.json())`,
-        'python-sdk': `# Bulk send is not in the textbee Python SDK yet. This uses the REST API
+        'python-sdk': `# Bulk send is not in the gateway-sms-api Python SDK yet. This uses the REST API
 # with requests (pip install requests).
 import os, requests
 
@@ -394,7 +394,7 @@ func main() {
 }`,
         sdk: `${SDK_SETUP}
 
-const { data, meta } = await textbee.getMessages({
+const { data, meta } = await gateway-sms-api.getMessages({
   direction: 'received',
   page: 1,
   limit: 20,
@@ -403,7 +403,7 @@ const { data, meta } = await textbee.getMessages({
 console.log(data, meta)
 
 // Or drain every match, following the cursor for you
-for await (const message of textbee.iterateMessages({
+for await (const message of gateway-sms-api.iterateMessages({
   direction: 'received',
   order: 'asc',
 })) {
@@ -411,12 +411,12 @@ for await (const message of textbee.iterateMessages({
 }`,
         'python-sdk': `${PYTHON_SDK_SETUP}
 
-page = textbee.get_messages(direction='received', page=1, limit=20)
+page = gateway-sms-api.get_messages(direction='received', page=1, limit=20)
 
 print(page['data'], page['meta'])
 
 # Or drain every match, following the cursor for you
-for message in textbee.iterate_messages(direction='received', order='asc'):
+for message in gateway-sms-api.iterate_messages(direction='received', order='asc'):
     print(message.get('sender'), message['message'])`,
       },
       response: `{
@@ -497,7 +497,7 @@ func main() {
 }`,
         sdk: `${SDK_SETUP}
 
-const { data, meta } = await textbee.getMessages({
+const { data, meta } = await gateway-sms-api.getMessages({
   page: 1,
   limit: 20,
 })
@@ -505,17 +505,17 @@ const { data, meta } = await textbee.getMessages({
 console.log(data, meta)
 
 // Narrow to one device, or to the recipients of a batch that failed
-await textbee.getMessages({ deviceIds: ['${id}'] })
-await textbee.getMessages({ smsBatchId: 'YOUR_BATCH_ID', status: 'failed' })`,
+await gateway-sms-api.getMessages({ deviceIds: ['${id}'] })
+await gateway-sms-api.getMessages({ smsBatchId: 'YOUR_BATCH_ID', status: 'failed' })`,
         'python-sdk': `${PYTHON_SDK_SETUP}
 
-page = textbee.get_messages(page=1, limit=20)
+page = gateway-sms-api.get_messages(page=1, limit=20)
 
 print(page['data'], page['meta'])
 
 # Narrow to one device, or to the recipients of a batch that failed
-textbee.get_messages(device_ids=['${id}'])
-textbee.get_messages(sms_batch_id='YOUR_BATCH_ID', status='failed')`,
+gateway-sms-api.get_messages(device_ids=['${id}'])
+gateway-sms-api.get_messages(sms_batch_id='YOUR_BATCH_ID', status='failed')`,
       },
       // Status values match the SMS schema: pending, dispatched, sent,
       // delivered, failed, unknown, received.
@@ -524,7 +524,7 @@ textbee.get_messages(sms_batch_id='YOUR_BATCH_ID', status='failed')`,
     {
       "_id": "665f1c2a9b1e4a0012ab34cd",
       "recipient": "+14155550101",
-      "message": "Hello from textbee",
+      "message": "Hello from gateway-sms-api",
       "direction": "sent",
       "status": "delivered",
       "requestedAt": "2026-07-18T09:12:00.000Z",

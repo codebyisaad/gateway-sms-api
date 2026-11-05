@@ -11,7 +11,7 @@ test.describe('message history (mocked API, no real backend)', () => {
     // Fixtures: one message 2h old, one 30h old.
     await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Yesterday' })).toBeVisible()
-    await expect(page.getByText('Hello from textbee')).toBeVisible()
+    await expect(page.getByText('Hello from gateway-sms-api')).toBeVisible()
     await expect(page.getByText('Reply from a customer')).toBeVisible()
   })
 
@@ -100,7 +100,7 @@ test.describe('message history (mocked API, no real backend)', () => {
     })
 
     await page.goto('/dashboard/messaging/history')
-    await expect(page.getByText('Hello from textbee')).toBeVisible()
+    await expect(page.getByText('Hello from gateway-sms-api')).toBeVisible()
 
     await page.getByLabel('Search messages').fill('customer')
 
@@ -127,7 +127,7 @@ test.describe('message history (mocked API, no real backend)', () => {
     })
 
     await page.goto('/dashboard/messaging/history')
-    await expect(page.getByText('Hello from textbee')).toBeVisible()
+    await expect(page.getByText('Hello from gateway-sms-api')).toBeVisible()
 
     // Type quickly; a naive implementation would fire one request per letter.
     await page.getByLabel('Search messages').pressSequentially('customer', {
@@ -167,7 +167,7 @@ test.describe('message history (mocked API, no real backend)', () => {
     await page.getByRole('button', { name: 'Show all messages' }).click()
 
     // Clearing restores the unfiltered list.
-    await expect(page.getByText('Hello from textbee')).toBeVisible()
+    await expect(page.getByText('Hello from gateway-sms-api')).toBeVisible()
   })
 
   test('a row opens the details dialog with the message body', async ({
@@ -178,11 +178,11 @@ test.describe('message history (mocked API, no real backend)', () => {
     await mockApi(page)
     await page.goto('/dashboard/messaging/history')
 
-    await page.getByRole('button', { name: /Hello from textbee/ }).click()
+    await page.getByRole('button', { name: /Hello from gateway-sms-api/ }).click()
 
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
-    await expect(dialog.getByText('Hello from textbee')).toBeVisible()
+    await expect(dialog.getByText('Hello from gateway-sms-api')).toBeVisible()
     // Exact timestamp is text here, since the list tooltip is hover-only.
     await expect(dialog.getByText(/\d{4} at \d{1,2}:\d{2}/)).toBeVisible()
   })
@@ -262,7 +262,7 @@ test.describe('message history (mocked API, no real backend)', () => {
                 _id: 'longurl_1',
                 recipient: '+12025550123',
                 message:
-                  'Support request - textbee support\nUrgency: Urgent\nView conversation:\nhttps://dash.supporthq.app/dashboard/projects/69a591f28bdb2cda5452246b/conversations/69c2a0a058b1a815140a9be5',
+                  'Support request - gateway-sms-api support\nUrgency: Urgent\nView conversation:\nhttps://dash.supporthq.app/dashboard/projects/69a591f28bdb2cda5452246b/conversations/69c2a0a058b1a815140a9be5',
                 status: 'failed',
                 type: 'sent',
                 errorCode: '1',

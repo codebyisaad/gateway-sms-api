@@ -13,12 +13,12 @@ export const API_TAGS: ReadonlyArray<{ name: string; description: string }> = [
   {
     name: 'webhooks',
     description:
-      'Subscribe to SMS events and inspect the delivery attempts textbee made for them.',
+      'Subscribe to SMS events and inspect the delivery attempts gateway-sms-api made for them.',
   },
   {
     name: 'auth',
     description:
-      'Accounts, sessions, and API keys. Used by the textbee dashboard.',
+      'Accounts, sessions, and API keys. Used by the gateway-sms-api dashboard.',
   },
   {
     name: 'billing',
@@ -31,7 +31,7 @@ export const API_TAGS: ReadonlyArray<{ name: string; description: string }> = [
   {
     name: 'notifications',
     description:
-      'The messages the textbee dashboard shows an account. Used by the dashboard only.',
+      'The messages the gateway-sms-api dashboard shows an account. Used by the dashboard only.',
   },
 ]
 
@@ -45,7 +45,7 @@ export interface SwaggerConfigOptions {
 
 const LICENSE = {
   name: 'AGPL-3.0',
-  url: 'https://github.com/textbee/textbee/blob/main/LICENSE',
+  url: 'https://github.com/codebyisaad/gateway-sms-api/blob/main/LICENSE',
 } as const
 
 // The server and the openapi exporter both call this, so the documented paths
@@ -76,7 +76,7 @@ export function buildSwaggerConfig({
         name: 'x-api-key',
         in: 'header',
         description:
-          'API key from your textbee dashboard, sent on every request.',
+          'API key from your gateway-sms-api dashboard, sent on every request.',
       },
       API_KEY_SECURITY_SCHEME,
     )

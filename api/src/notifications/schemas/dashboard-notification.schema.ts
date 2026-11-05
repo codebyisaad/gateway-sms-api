@@ -151,7 +151,7 @@ export class NotificationSource {
   @Prop({ type: String })
   product?: string
 
-  @Prop({ type: String, default: 'textbee' })
+  @Prop({ type: String, default: 'gateway-sms-api' })
   owner?: string
 }
 

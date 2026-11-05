@@ -22,7 +22,7 @@ import GetStartedCardSkeleton from './skeleton'
 import StepActions from './step-actions'
 import { useOnboarding } from './use-onboarding'
 
-const MINIMIZED_KEY = 'textbee.onboarding.minimized'
+const MINIMIZED_KEY = 'gateway-sms-api.onboarding.minimized'
 
 function encouragement(percent: number): string {
   if (percent >= 100) return 'All steps complete!'

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 /*
- * textbee is open source, so a self-hosted dashboard must load no analytics or
+ * gateway-sms-api is open source, so a self-hosted dashboard must load no analytics or
  * ad-platform script unless its operator opts in. The Playwright web server
  * starts with no analytics env vars, which is exactly the self-host default.
  *
